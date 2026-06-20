@@ -1,0 +1,50 @@
+/* ============================================================
+   Studio Web UI — Design Tokens (pure). Single source of truth
+   for values. Reference the variables; never hardcode.
+   ============================================================ */
+
+:root {
+  /* — Canvas & ink — */
+  --canvas:     #E7E2D4;
+  --surface:    #EFEBDF;
+  --ink:        #0A0A0A;
+  --ink-muted:  #6B6862;
+
+  /* — One hot accent. Use it ONCE per screen. — */
+  --hot:        #E63E27;
+  --on-hot:     #F3F0E9;
+
+  /* — Module accent palette (low-saturation blocks) — */
+  --m-sage:     #A6B3A0;
+  --m-clay:     #BBA98A;
+  --m-salmon:   #EFD3C8;
+  --m-slate:    #A0A6EC;
+  --m-hot:      #E63E27;
+
+  /* — Type families (Latin first, CJK fallback after) — */
+  --font-display: "Bricolage Grotesque", "Archivo", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "Space Mono", ui-monospace, "PingFang SC", monospace;
+  --font-body:    "Plus Jakarta Sans", "Work Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-serif:   "Fraunces", "Newsreader", "Songti SC", "Source Han Serif SC", Georgia, serif;
+
+  /* — Type scale — */
+  --fs-display:     clamp(3rem, 9vw, 7rem);
+  --fs-card-title:  clamp(1.6rem, 3.2vw, 2.4rem);
+  --fs-body:        1.0625rem;
+  --fs-label:       0.75rem;
+  --tracking-label: 0.08em;
+  --leading-tight:  0.95;
+
+  /* — Spacing, 8px base — */
+  --s1: 4px;  --s2: 8px;  --s3: 16px; --s4: 24px;
+  --s5: 32px; --s6: 48px; --s7: 64px; --s8: 96px;
+
+  /* — Radius (soft default) — */
+  --radius:      24px;
+  --radius-pill: 999px;
+
+  /* — Grid — */
+  --split-sidebar: 37fr;
+  --split-content: 63fr;
+  --maxw: 1600px;
+}

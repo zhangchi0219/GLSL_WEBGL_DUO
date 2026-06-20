@@ -1,9 +1,9 @@
 // ============================================================
-// Pixel Sort (single-pass approximation) — TouchDesigner GLSL TOP (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (pixelsort).
-// NOTE: a true pixel sort is multi-pass; this approximates the streak look
-// in one pass (per-pixel march + max/min within a luma-masked span).
-// For a heavier/closer result, feed this through a Feedback TOP loop.
+// Pixel Sort — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/pixelsort.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -49,15 +49,18 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uLow      float  0.25   mask low luma (only pixels in [Low,High] sort)
-  uHigh     float  0.80   mask high luma
-  uLength   float  120    max march length in pixels
-  uVertical float  0      0 = horizontal sort, 1 = vertical
-  uReverse  float  0      flip sort direction
-  uMode     float  0      0 = brightest wins, 1 = darkest wins
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
-Perf: cost = uLength texture taps per pixel. At 4K, lower uLength or downres first.
+Vectors page (custom uniforms):
+  uLow         float 0.25           Mask Low
+  uHigh        float 0.8            Mask High
+  uLength      float 120.0          Sort Length (px)
+  uVertical    float 0              Vertical
+  uReverse     float 0              Reverse Dir
+  uMode        float 0              Darkest (off=Bright)
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
+Perf: many texture taps per pixel — at 4K lower the radius/length or downres first.
+A true pixel sort is multi-pass — loop this through a Feedback TOP for a stronger result.
 =============================================== */

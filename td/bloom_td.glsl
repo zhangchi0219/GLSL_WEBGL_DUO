@@ -1,8 +1,9 @@
 // ============================================================
-// Bloom / Glow — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (bloom).
-// Single-pass approximation (bright-pass + 32-tap weighted blur).
-// For a cleaner/cheaper bloom in TD, see the multi-pass note below.
+// Bloom / Glow — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/bloom.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -41,18 +42,15 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA (or 16-bit float for HDR glow).
-Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uThreshold  float  0.6     brightness cutoff for the glow
-  uIntensity  float  1.0     glow add amount
-  uRadius     float  24      glow radius in pixels
+Vectors page (custom uniforms):
+  uThreshold   float 0.6            Threshold
+  uIntensity   float 1.0            Intensity
+  uRadius      float 24.0           Glow Radius (px)
 
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
-
-Higher-quality alternative (native multi-pass, recommended for big radii / 4K):
-  source TOP  ->  Level TOP (or this shader with uIntensity 0 as bright-pass)
-              ->  Blur TOP (size = radius)
-              ->  Composite TOP (Operation = Add) over the source.
+Inputs: Input 0 = source TOP (sampled as INPUT0).
+Perf: many texture taps per pixel — at 4K lower the radius/length or downres first.
+Higher-quality native path (recommended for big radii / 4K): source -> Level/Threshold -> Blur TOP (size = radius) -> Composite TOP (Add) over the source.
 =============================================== */

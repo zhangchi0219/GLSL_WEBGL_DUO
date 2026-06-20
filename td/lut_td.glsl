@@ -1,6 +1,9 @@
 // ============================================================
-// Gradient Map / Duotone LUT — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (lut).
+// Gradient Map LUT — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/lut.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -30,13 +33,15 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uLevels  float  1      posterize steps (1 = smooth gradient)
-  uShadow  vec3   0.10 0.05 0.20
-  uMid     vec3   0.80 0.25 0.30
-  uHigh    vec3   0.98 0.90 0.55
-  uMix     float  1.0    blend toward graded result
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uLevels      float 1.0            Posterize (1=off)
+  uShadow      vec3  0.1 0.05 0.2   Shadows
+  uMid         vec3  0.8 0.25 0.3   Midtones
+  uHigh        vec3  0.98 0.9 0.55  Highlights
+  uMix         float 1.0            Mix
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

@@ -1,7 +1,9 @@
 // ============================================================
-// ASCII Art — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (ascii).
-// Uses bit-coded 5x5 glyphs; `highp int` keeps the codes 32-bit on WebGL too.
+// ASCII Art — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/ascii.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -52,12 +54,14 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uCell   float  8      character cell size (px)
-  uColor  float  0      0 = ink/paper chars, 1 = chars tinted by source
-  uInk    vec3   0.85 0.95 0.70
-  uPaper  vec3   0.04 0.05 0.04
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uCell        float 8.0            Cell Size (px)
+  uColor       float 0              Color Chars
+  uInk         vec3  0.85 0.95 0.7  Ink
+  uPaper       vec3  0.04 0.05 0.04  Paper
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

@@ -1,7 +1,9 @@
 // ============================================================
-// Ripple Displace — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (ripple).
-// Animated by uTime → wire it on the Vectors page.
+// Ripple Displace — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/ripple.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -32,13 +34,15 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uTime       float  expr: absTime.seconds   (drives the animation)
-  uAmplitude  float  0.5
-  uFrequency  float  30
-  uSpeed      float  2.0
-  uCenter     vec2   0.5 0.5
-Inputs: Input 0 = source TOP.  CHOP wiring: optional (uTime can be a CHOP export).
+Vectors page (custom uniforms):
+  uTime        float expr: absTime.seconds   drives the animation
+  uAmplitude   float 0.5            Amplitude
+  uFrequency   float 30.0           Frequency
+  uSpeed       float 2.0            Speed
+  uCenter      vec2  0.5 0.5        Center
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

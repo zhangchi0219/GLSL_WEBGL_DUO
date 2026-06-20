@@ -1,6 +1,9 @@
 // ============================================================
-// Posterize / Color Grade — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (posterize).
+// Posterize / Grade — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/posterize.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -31,15 +34,15 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
-(If your input is 16/32-bit float linear, the look may differ from the browser;
- use 8-bit fixed to match, or pre-convert.)
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uLevels      float  5      quantization bands
-  uGamma       float  1.0
-  uContrast    float  1.1
-  uBrightness  float  0.0
-  uSaturation  float  1.2
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uLevels      float 5.0            Levels
+  uGamma       float 1.0            Gamma
+  uContrast    float 1.1            Contrast
+  uBrightness  float 0.0            Brightness
+  uSaturation  float 1.2            Saturation
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

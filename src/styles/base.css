@@ -1,0 +1,46 @@
+/* ============================================================
+   Studio Web UI — Base layer. Element defaults + utilities.
+   Load AFTER tokens.css.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 400 var(--fs-body)/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* the mono metadata label — the signature element */
+.label {
+  font: 500 var(--fs-label)/1 var(--font-mono);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.on-hot { color: var(--on-hot); }
+
+/* ---------------------------------------------------------------
+   Optional: self-host the Latin display/mono faces for the real
+   grotesque look + mainland-China reliability. Drop the woff2 files
+   into public/fonts/ and uncomment. Until then the token chains fall
+   back to the system stack (works offline, renders Chinese fine).
+   See the studio-web-ui fonts-china reference.
+----------------------------------------------------------------
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("./fonts/bricolage-grotesque-800.woff2") format("woff2");
+  font-weight: 700 800; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./fonts/jetbrains-mono-500.woff2") format("woff2");
+  font-weight: 500; font-display: swap;
+}
+--------------------------------------------------------------- */

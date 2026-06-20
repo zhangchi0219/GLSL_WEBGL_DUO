@@ -1,6 +1,9 @@
 // ============================================================
-// Voronoi Crystallize — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (voronoi).
+// Voronoi Crystallize — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/voronoi.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -49,12 +52,14 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uScale      float  24     cell size (px)
-  uJitter     float  1.0    cell randomness (0 = square grid)
-  uEdge       float  0.0    cell border width (0 = no borders, try 0.05)
-  uEdgeColor  vec3   0.03 0.03 0.03
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uScale       float 24.0           Cell Size (px)
+  uJitter      float 1.0            Jitter
+  uEdge        float 0.0            Edge Width
+  uEdgeColor   vec3  0.03 0.03 0.03  Edge Color
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

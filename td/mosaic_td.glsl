@@ -1,7 +1,9 @@
 // ============================================================
-// Mosaic / Pixelate — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (mosaic).
-// No #version line — TD inserts it.
+// Mosaic / Pixelate — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/mosaic.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -33,12 +35,13 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA.
-Input 0  ← the TOP you want to pixelate (sampled as INPUT0).
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
 Vectors page (custom uniforms):
-  uBlock  float  16     block size in pixels
-  uRound  float  0.0    0 = square cells, >0 = circular dots (try 1.0)
-  uBg     vec3   0.04 0.04 0.04   gap color behind round dots
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+  uBlock       float 16.0           Block Size (px)
+  uRound       float 0.0            Roundness (0=square)
+  uBg          vec3  0.04 0.04 0.04  Gap Color
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

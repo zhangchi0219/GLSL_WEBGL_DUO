@@ -1,6 +1,9 @@
 // ============================================================
-// Bitmap / Ordered Dither — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (dither).
+// Bitmap / Dither — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/dither.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -49,15 +52,17 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uPixel   float  2      pre-pixelation block size (px)
-  uLevels  float  2      color levels per channel (2 = 1-bit)
-  uSpread  float  1.0    dither strength
-  uMono    float  1      1 = greyscale, 0 = per-channel color dither
-  uUseInk  float  1      1 = remap mono to Ink/Paper colors
-  uInk     vec3   0.05 0.05 0.08
-  uPaper   vec3   0.92 0.90 0.82
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uPixel       float 2.0            Pixel Size (px)
+  uLevels      float 2.0            Levels / Channel
+  uSpread      float 1.0            Dither Spread
+  uMono        float 1              Monochrome
+  uUseInk      float 1              Use Ink/Paper
+  uInk         vec3  0.05 0.05 0.08  Ink
+  uPaper       vec3  0.92 0.9 0.82  Paper
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

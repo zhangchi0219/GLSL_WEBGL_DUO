@@ -1,6 +1,9 @@
 // ============================================================
-// Chromatic Aberration — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (chromatic).
+// Chromatic Aberration — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/chromatic.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -30,12 +33,14 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uAmount   float  0.4        split strength
-  uFalloff  float  1.5        edge falloff exponent (0 = uniform)
-  uCenter   vec2   0.5 0.5    split origin (0..1)
-  uVignette float  0.3        darken toward edges
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uAmount      float 0.4            Amount
+  uFalloff     float 1.5            Edge Falloff
+  uCenter      vec2  0.5 0.5        Center
+  uVignette    float 0.3            Vignette
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

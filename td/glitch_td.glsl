@@ -1,7 +1,9 @@
 // ============================================================
-// Glitch / Datamosh — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (glitch).
-// Animated by uTime → wire it on the Vectors page.
+// Glitch / Datamosh — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/glitch.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -52,14 +54,16 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uTime        float  expr: absTime.seconds   (drives the animation)
-  uIntensity   float  0.4
-  uBlock       float  24     block height (px)
-  uSpeed       float  1.0
-  uColorShift  float  0.5
-  uScanNoise   float  0.3
-Inputs: Input 0 = source TOP.  CHOP wiring: optional (uTime can be a CHOP export).
+Vectors page (custom uniforms):
+  uTime        float expr: absTime.seconds   drives the animation
+  uIntensity   float 0.4            Intensity
+  uBlock       float 24.0           Block Height (px)
+  uSpeed       float 1.0            Speed
+  uColorShift  float 0.5            Color Shift
+  uScanNoise   float 0.3            Scan Noise
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

@@ -1,6 +1,9 @@
 // ============================================================
-// Halftone / Dot Screen — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (halftone).
+// Halftone / Dot Screen — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/halftone.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -46,13 +49,15 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uScale  float  8      dot cell size in pixels
-  uAngle  float  30     screen angle (degrees)
-  uColor  float  0      0 = mono ink/paper, 1 = RGB screens on black
-  uInk    vec3   0.06 0.05 0.05
-  uPaper  vec3   0.93 0.91 0.84
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uScale       float 8.0            Dot Cell (px)
+  uAngle       float 30.0           Screen Angle
+  uColor       float 0              Color (RGB screens)
+  uInk         vec3  0.06 0.05 0.05  Ink
+  uPaper       vec3  0.93 0.91 0.84  Paper
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

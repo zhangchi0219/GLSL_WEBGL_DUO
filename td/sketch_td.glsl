@@ -1,6 +1,9 @@
 // ============================================================
-// Sketch (Pencil) — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (sketch).
+// Sketch (Pencil) — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/sketch.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -53,12 +56,14 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uStrength  float  2.0    outline edge strength
-  uHatch     float  0.7    cross-hatch amount
-  uInk       vec3   0.10 0.10 0.12
-  uPaper     vec3   0.95 0.93 0.86
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uStrength    float 2.0            Edge Strength
+  uHatch       float 0.7            Hatching
+  uInk         vec3  0.1 0.1 0.12   Ink
+  uPaper       vec3  0.95 0.93 0.86  Paper
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

@@ -1,6 +1,9 @@
 // ============================================================
-// Sharpen (unsharp mask) — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (sharpen).
+// Sharpen — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/sharpen.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -32,10 +35,12 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uAmount  float  1.0    sharpen strength
-  uRadius  float  1.0    sample spread (px)
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
+Vectors page (custom uniforms):
+  uAmount      float 1.0            Amount
+  uRadius      float 1.0            Radius (px)
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
 =============================================== */

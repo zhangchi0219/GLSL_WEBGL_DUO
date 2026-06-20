@@ -1,6 +1,9 @@
 // ============================================================
-// Oilify (Oil Paint) — TouchDesigner GLSL TOP port (GLSL 4.60)
-// Shared core is byte-identical to filters-preview.html (oilify).
+// Oilify (Oil Paint) — TouchDesigner GLSL TOP (GLSL 4.60)
+// AUTO-GENERATED from src/filters/oilify.ts by `npm run gen:td`.
+// The SHARED CORE below is the exact same string the WebGL2 app compiles —
+// byte-identical by construction. Edit the filter module, not this file.
+// No #version line: TouchDesigner inserts it.
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
@@ -47,11 +50,13 @@ void main(){
 }
 
 /* ============ TOUCHDESIGNER SETUP ============
-GLSL TOP > 4.60. Pixel Format: 8-bit fixed RGBA. Input 0 ← source TOP.
+GLSL TOP > GLSL Version 4.60, Mode Vertex/Pixel. Pixel Format: 8-bit fixed RGBA
+(matches the browser preview). Connect your source TOP to Input 0.
 
-Vectors page:
-  uRadius  float  4      neighborhood radius (px)
-  uLevels  float  16     intensity buckets (lower = chunkier strokes)
-Inputs: Input 0 = source TOP.  CHOP wiring: none.
-Perf: ~(2r+1)^2 taps per pixel; lower uRadius or downres at 4K.
+Vectors page (custom uniforms):
+  uRadius      float 4.0            Radius (px)
+  uLevels      float 16.0           Intensity Levels
+
+Inputs: Input 0 = source TOP (sampled as INPUT0).
+Perf: many texture taps per pixel — at 4K lower the radius/length or downres first.
 =============================================== */

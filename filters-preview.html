@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ============================================================
+  GLSL FILTER LAB — WebGL2 preview (dual-target, ports to TD GLSL TOP)
+  Self-contained: no CDN, no web fonts. Works offline.
+  Each filter's SHARED CORE (the `core` string below) is byte-identical
+  to the matching td/<name>_td.glsl file — only the wrapper differs.
+  Load your own image (button, top-right) or use the built-in test card.
+============================================================ -->
+<title>GLSL Filter Lab</title>
+<style>
+  :root{
+    --canvas:#E7E2D4; --surface:#EFEBDF; --ink:#0A0A0A; --ink-muted:#6B6862;
+    --hot:#E63E27; --on-hot:#F3F0E9; --line:#CDC8B8;
+    --font-mono:"JetBrains Mono","Space Mono",ui-monospace,"PingFang SC",monospace;
+    --font-display:"Bricolage Grotesque","Archivo","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --fs-label:.72rem; --tracking:.08em; --radius:24px;
+    --s2:8px; --s3:16px; --s4:24px; --s5:32px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--canvas); color:var(--ink);
+    font-family:var(--font-display);
+    display:grid; grid-template-columns:1fr 340px; gap:var(--s3);
+    padding:var(--s3); overflow:hidden;
+  }
+  .stage{
+    position:relative; border-radius:var(--radius); overflow:hidden;
+    background:#000; min-height:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  canvas{ max-width:100%; max-height:100%; display:block; }
+  .stage .hud{
+    position:absolute; top:var(--s3); left:var(--s3);
+    font-family:var(--font-mono); font-size:var(--fs-label);
+    letter-spacing:var(--tracking); text-transform:uppercase;
+    color:var(--on-hot); mix-blend-mode:difference; pointer-events:none;
+  }
+  #err{
+    position:absolute; inset:auto 0 0 0; max-height:50%;
+    overflow:auto; display:none; padding:var(--s3);
+    background:var(--hot); color:var(--on-hot);
+    font-family:var(--font-mono); font-size:.8rem; white-space:pre-wrap;
+  }
+  .panel{
+    background:var(--surface); border-radius:var(--radius);
+    padding:var(--s4); display:flex; flex-direction:column;
+    gap:var(--s4); overflow-y:auto;
+  }
+  .panel h1{ font-size:1.5rem; font-weight:800; line-height:.95; }
+  .label{
+    font-family:var(--font-mono); font-size:var(--fs-label);
+    letter-spacing:var(--tracking); text-transform:uppercase;
+    color:var(--ink-muted);
+  }
+  .desc{ font-size:.82rem; color:var(--ink-muted); line-height:1.35; }
+  .ctl{display:flex; flex-direction:column; gap:var(--s2)}
+  .ctl .row{display:flex; justify-content:space-between; align-items:center}
+  .ctl .val{font-family:var(--font-mono); font-size:var(--fs-label); color:var(--ink)}
+  select, .filebtn{
+    width:100%; padding:10px 12px; border:1px solid var(--line);
+    border-radius:12px; background:var(--canvas); color:var(--ink);
+    font-family:var(--font-mono); font-size:var(--fs-label);
+    letter-spacing:var(--tracking); text-transform:uppercase; cursor:pointer;
+  }
+  .filebtn{ text-align:center; display:block; }
+  input[type=file]{ display:none; }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:2px;
+    background:var(--ink-muted); border-radius:999px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:16px; height:16px;
+    border-radius:50%; background:var(--ink); cursor:pointer; border:none;
+  }
+  input[type=color]{
+    width:100%; height:36px; border:none; border-radius:12px;
+    background:none; cursor:pointer; padding:0;
+  }
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--ink)}
+  .divider{height:1px;background:var(--line);}
+  .btn{
+    padding:12px 20px; border:none; cursor:pointer;
+    background:var(--hot); color:var(--on-hot);
+    border-radius:999px; font-family:var(--font-mono);
+    font-size:var(--fs-label); letter-spacing:var(--tracking);
+    text-transform:uppercase;
+  }
+  .btn:active{transform:scale(.98)}
+  .meta{font-family:var(--font-mono); font-size:.66rem; color:var(--ink-muted); line-height:1.4}
+  @media (max-width:760px){
+    body{grid-template-columns:1fr; grid-template-rows:50vh 1fr; overflow:auto}
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="gl"></canvas>
+    <div class="hud" id="hud">FILTER — 00 FPS</div>
+    <pre id="err"></pre>
+  </div>
+  <aside class="panel">
+    <div>
+      <div class="label">GLSL DUAL-TARGET / WEBGL2</div>
+      <h1 id="title">GLSL Filter Lab</h1>
+    </div>
+
+    <div class="ctl">
+      <span class="label">Source Image</span>
+      <label class="filebtn">UPLOAD IMAGE → <input type="file" id="file" accept="image/*"></label>
+    </div>
+
+    <div class="ctl">
+      <span class="label">Filter</span>
+      <select id="filter"></select>
+      <span class="desc" id="fdesc"></span>
+    </div>
+
+    <div class="divider"></div>
+    <div id="controls"></div>
+    <button class="btn" id="reset">RESET PARAMS →</button>
+    <div class="meta" id="meta"></div>
+  </aside>
+
+<script>
+/* =========================================================================
+   FILTERS — each entry is one shared core + its UI params.
+   `core` compiles under BOTH GLSL ES 3.00 (WebGL2) and GLSL 4.60 (TD).
+   Rules: no #version / no precision in core; floats always have a decimal;
+   sample input via texture(INPUT0, uv); entry = renderMain(uv,res,time).
+   ========================================================================= */
+const FILTERS = [
+
+/* ---------------- 1. MOSAIC / PIXELATE ---------------- */
+{ id:"mosaic", name:"Mosaic / Pixelate",
+  desc:"Quantize UVs into a grid of blocks. Round option turns cells into dots on a backing color.",
+  params:[
+    { name:"uBlock", type:"float", value:16.0, min:1.0, max:120.0, step:1.0, label:"Block Size (px)" },
+    { name:"uRound", type:"float", value:0.0,  min:0.0, max:1.4,  step:0.01, label:"Roundness (0=square)" },
+    { name:"uBg",    type:"color", value:[0.04,0.04,0.04], label:"Gap Color" },
+  ],
+  core:`
+uniform float uBlock;
+uniform float uRound;
+uniform vec3  uBg;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    float bs = max(uBlock, 1.0);
+    vec2 grid = res / bs;
+    vec2 cell = floor(uv * grid);
+    vec2 cuv  = (cell + 0.5) / grid;
+    vec3 c = texture(INPUT0, cuv).rgb;
+    if (uRound > 0.001){
+        vec2 f = fract(uv * grid) - 0.5;
+        float d = length(f) * 2.0;
+        float m = smoothstep(uRound, uRound - 0.12, d);
+        c = mix(uBg, c, m);
+    }
+    return vec4(c, 1.0);
+}
+`},
+
+/* ---------------- 2. BITMAP / ORDERED DITHER ---------------- */
+{ id:"dither", name:"Bitmap / Dither",
+  desc:"Ordered (8x8 Bayer) dithering with per-channel quantization. Mono + ink/paper gives the classic 1-bit bitmap look.",
+  params:[
+    { name:"uPixel",  type:"float", value:2.0, min:1.0, max:16.0, step:1.0, label:"Pixel Size (px)" },
+    { name:"uLevels", type:"float", value:2.0, min:2.0, max:8.0,  step:1.0, label:"Levels / Channel" },
+    { name:"uSpread", type:"float", value:1.0, min:0.0, max:2.0,  step:0.01,label:"Dither Spread" },
+    { name:"uMono",   type:"bool",  value:true,  label:"Monochrome" },
+    { name:"uUseInk", type:"bool",  value:true,  label:"Use Ink/Paper" },
+    { name:"uInk",    type:"color", value:[0.05,0.05,0.08], label:"Ink" },
+    { name:"uPaper",  type:"color", value:[0.92,0.90,0.82], label:"Paper" },
+  ],
+  core:`
+uniform float uPixel;
+uniform float uLevels;
+uniform float uSpread;
+uniform float uMono;
+uniform float uUseInk;
+uniform vec3  uInk;
+uniform vec3  uPaper;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+float Bayer2(vec2 a){ a = floor(a); return fract(a.x * 0.5 + a.y * a.y * 0.75); }
+float Bayer4(vec2 a){ return Bayer2(0.5 * a) * 0.25 + Bayer2(a); }
+float Bayer8(vec2 a){ return Bayer4(0.5 * a) * 0.25 + Bayer2(a); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    float px = max(uPixel, 1.0);
+    vec2 grid = res / px;
+    vec2 suv  = (floor(uv * grid) + 0.5) / grid;
+    vec3 c = texture(INPUT0, suv).rgb;
+
+    vec2 bp = floor(uv * res / px);
+    float t = Bayer8(bp);
+    float L = max(uLevels, 2.0);
+
+    vec3 col;
+    if (uMono > 0.5){
+        float g = luma(c);
+        g = floor(g * (L - 1.0) + (t - 0.5) * uSpread + 0.5) / (L - 1.0);
+        g = clamp(g, 0.0, 1.0);
+        col = (uUseInk > 0.5) ? mix(uPaper, uInk, g) : vec3(g);
+    } else {
+        col = floor(c * (L - 1.0) + (t - 0.5) * uSpread + 0.5) / (L - 1.0);
+        col = clamp(col, 0.0, 1.0);
+    }
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 3. PIXEL SORT (single-pass approximation) ---------------- */
+{ id:"pixelsort", name:"Pixel Sort (approx.)",
+  desc:"Per-pixel marches along the sort axis through a luma-masked span and pulls the brightest/darkest sample. A true sort is multi-pass; this is a fast GPU approximation of the streak look.",
+  params:[
+    { name:"uLow",      type:"float", value:0.25, min:0.0, max:1.0, step:0.01, label:"Mask Low" },
+    { name:"uHigh",     type:"float", value:0.80, min:0.0, max:1.0, step:0.01, label:"Mask High" },
+    { name:"uLength",   type:"float", value:120.0,min:1.0, max:280.0,step:1.0, label:"Sort Length (px)" },
+    { name:"uVertical", type:"bool",  value:false, label:"Vertical" },
+    { name:"uReverse",  type:"bool",  value:false, label:"Reverse Dir" },
+    { name:"uMode",     type:"bool",  value:false, label:"Darkest (off=Bright)" },
+  ],
+  core:`
+uniform float uLow;
+uniform float uHigh;
+uniform float uLength;
+uniform float uVertical;
+uniform float uReverse;
+uniform float uMode;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 texel = 1.0 / vec2(textureSize(INPUT0, 0));
+    vec2 dir = (uVertical > 0.5) ? vec2(0.0, 1.0) : vec2(1.0, 0.0);
+    dir *= (uReverse > 0.5) ? -1.0 : 1.0;
+
+    vec4 cur = texture(INPUT0, uv);
+    float cl = luma(cur.rgb);
+    if (cl < uLow || cl > uHigh) return vec4(cur.rgb, 1.0); // outside mask: untouched
+
+    int maxN = int(clamp(uLength, 1.0, 280.0));
+    vec4 best = cur; float bestL = cl;
+    for (int i = 1; i < 280; i++){
+        if (i > maxN) break;
+        vec2 suv = uv + dir * texel * float(i);
+        if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) break;
+        vec4 s = texture(INPUT0, suv);
+        float l = luma(s.rgb);
+        if (l < uLow || l > uHigh) break;              // span boundary
+        bool take = (uMode > 0.5) ? (l < bestL) : (l > bestL);
+        if (take){ bestL = l; best = s; }
+    }
+    return vec4(best.rgb, 1.0);
+}
+`},
+
+/* ---------------- 4. HALFTONE / DOT SCREEN ---------------- */
+{ id:"halftone", name:"Halftone / Dot Screen",
+  desc:"Print-style dot screen. Mono uses one angled grid with ink/paper; Color screens R/G/B at offset angles on black.",
+  params:[
+    { name:"uScale", type:"float", value:8.0,  min:2.0, max:40.0, step:0.5, label:"Dot Cell (px)" },
+    { name:"uAngle", type:"float", value:30.0, min:0.0, max:90.0, step:1.0, label:"Screen Angle" },
+    { name:"uColor", type:"bool",  value:false, label:"Color (RGB screens)" },
+    { name:"uInk",   type:"color", value:[0.06,0.05,0.05], label:"Ink" },
+    { name:"uPaper", type:"color", value:[0.93,0.91,0.84], label:"Paper" },
+  ],
+  core:`
+uniform float uScale;
+uniform float uAngle;
+uniform float uColor;
+uniform vec3  uInk;
+uniform vec3  uPaper;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+mat2 rot2(float a){ float s = sin(a), c = cos(a); return mat2(c, -s, s, c); }
+
+float dotMask(vec2 uv, vec2 res, float cellPx, float angle, float value){
+    vec2 p = rot2(angle) * (uv * res);
+    vec2 cell = mod(p, cellPx) / cellPx - 0.5;
+    float d = length(cell) * 2.0;
+    float r = sqrt(clamp(value, 0.0, 1.0));
+    return smoothstep(r + 0.08, r - 0.08, d);
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec3 src = texture(INPUT0, uv).rgb;
+    float a = radians(uAngle);
+    vec3 col;
+    if (uColor > 0.5){
+        float mr = dotMask(uv, res, uScale, a + radians(15.0), src.r);
+        float mg = dotMask(uv, res, uScale, a + radians(75.0), src.g);
+        float mb = dotMask(uv, res, uScale, a + radians(45.0), src.b);
+        col = vec3(mr, mg, mb);
+    } else {
+        float m = dotMask(uv, res, uScale, a, 1.0 - luma(src));
+        col = mix(uPaper, uInk, m);
+    }
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 5. CHROMATIC ABERRATION ---------------- */
+{ id:"chromatic", name:"Chromatic Aberration",
+  desc:"Radial RGB split from a center point, growing with distance. Optional lens vignette.",
+  params:[
+    { name:"uAmount",  type:"float", value:0.4, min:0.0, max:2.0, step:0.01, label:"Amount" },
+    { name:"uFalloff", type:"float", value:1.5, min:0.0, max:4.0, step:0.05, label:"Edge Falloff" },
+    { name:"uCenter",  type:"vec2",  value:[0.5,0.5], label:"Center" },
+    { name:"uVignette",type:"float", value:0.3, min:0.0, max:2.0, step:0.01, label:"Vignette" },
+  ],
+  core:`
+uniform float uAmount;
+uniform float uFalloff;
+uniform vec2  uCenter;
+uniform float uVignette;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 dir  = uv - uCenter;
+    float dist = length(dir);
+    vec2 off = dir * pow(dist, uFalloff) * uAmount * 0.08;
+    float r = texture(INPUT0, uv + off).r;
+    float g = texture(INPUT0, uv).g;
+    float b = texture(INPUT0, uv - off).b;
+    vec3 col = vec3(r, g, b);
+    col *= 1.0 - uVignette * dist * dist;
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 6. POSTERIZE / COLOR GRADE ---------------- */
+{ id:"posterize", name:"Posterize / Grade",
+  desc:"Quantize into N color bands, plus gamma, contrast, brightness and saturation grading.",
+  params:[
+    { name:"uLevels",     type:"float", value:5.0, min:2.0, max:16.0, step:1.0, label:"Levels" },
+    { name:"uGamma",      type:"float", value:1.0, min:0.2, max:3.0, step:0.01, label:"Gamma" },
+    { name:"uContrast",   type:"float", value:1.1, min:0.0, max:2.5, step:0.01, label:"Contrast" },
+    { name:"uBrightness", type:"float", value:0.0, min:-0.5,max:0.5, step:0.01, label:"Brightness" },
+    { name:"uSaturation", type:"float", value:1.2, min:0.0, max:2.5, step:0.01, label:"Saturation" },
+  ],
+  core:`
+uniform float uLevels;
+uniform float uGamma;
+uniform float uContrast;
+uniform float uBrightness;
+uniform float uSaturation;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec3 c = texture(INPUT0, uv).rgb;
+    c = pow(max(c, 0.0), vec3(1.0 / max(uGamma, 0.01)));
+    float L = max(uLevels, 2.0);
+    c = floor(c * (L - 1.0) + 0.5) / (L - 1.0);
+    c = (c - 0.5) * uContrast + 0.5 + uBrightness;
+    c = mix(vec3(luma(c)), c, uSaturation);
+    return vec4(clamp(c, 0.0, 1.0), 1.0);
+}
+`},
+
+/* ---------------- 7. SOBEL EDGE DETECT ---------------- */
+{ id:"sobel", name:"Sobel Edge",
+  desc:"3x3 Sobel gradient magnitude on luma. Overlay edges on the image, or draw flat edge/background colors.",
+  params:[
+    { name:"uStrength",  type:"float", value:1.5, min:0.0, max:6.0, step:0.01, label:"Strength" },
+    { name:"uThreshold", type:"float", value:0.15,min:0.0, max:1.0, step:0.01, label:"Threshold" },
+    { name:"uOverlay",   type:"bool",  value:false, label:"Overlay On Image" },
+    { name:"uInvert",    type:"bool",  value:false, label:"Invert" },
+    { name:"uEdge",      type:"color", value:[0.95,0.93,0.85], label:"Edge Color" },
+    { name:"uBg",        type:"color", value:[0.03,0.03,0.05], label:"Background" },
+  ],
+  core:`
+uniform float uStrength;
+uniform float uThreshold;
+uniform float uOverlay;
+uniform float uInvert;
+uniform vec3  uEdge;
+uniform vec3  uBg;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 t = 1.0 / vec2(textureSize(INPUT0, 0));
+    float tl = luma(texture(INPUT0, uv + vec2(-1.0,-1.0) * t).rgb);
+    float tc = luma(texture(INPUT0, uv + vec2( 0.0,-1.0) * t).rgb);
+    float tr = luma(texture(INPUT0, uv + vec2( 1.0,-1.0) * t).rgb);
+    float ml = luma(texture(INPUT0, uv + vec2(-1.0, 0.0) * t).rgb);
+    float mr = luma(texture(INPUT0, uv + vec2( 1.0, 0.0) * t).rgb);
+    float bl = luma(texture(INPUT0, uv + vec2(-1.0, 1.0) * t).rgb);
+    float bc = luma(texture(INPUT0, uv + vec2( 0.0, 1.0) * t).rgb);
+    float br = luma(texture(INPUT0, uv + vec2( 1.0, 1.0) * t).rgb);
+
+    float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
+    float gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
+    float g  = sqrt(gx * gx + gy * gy) * uStrength;
+    float e  = smoothstep(uThreshold, uThreshold + 0.1, g);
+    if (uInvert > 0.5) e = 1.0 - e;
+
+    vec3 col = (uOverlay > 0.5)
+        ? mix(texture(INPUT0, uv).rgb, uEdge, e)
+        : mix(uBg, uEdge, e);
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 8. CRT / SCANLINES ---------------- */
+{ id:"crt", name:"CRT / Scanlines",
+  desc:"Barrel curvature, scanlines, RGB aperture mask, edge aberration, vignette and a subtle flicker.",
+  params:[
+    { name:"uCurvature",  type:"float", value:0.15, min:0.0, max:0.6, step:0.01, label:"Curvature" },
+    { name:"uScanline",   type:"float", value:2.0,  min:1.0, max:8.0, step:0.5,  label:"Scanline Period" },
+    { name:"uScanDepth",  type:"float", value:0.4,  min:0.0, max:1.0, step:0.01, label:"Scanline Depth" },
+    { name:"uMaskDepth",  type:"float", value:0.3,  min:0.0, max:1.0, step:0.01, label:"RGB Mask" },
+    { name:"uAberration", type:"float", value:0.4,  min:0.0, max:3.0, step:0.01, label:"Aberration" },
+    { name:"uVignette",   type:"float", value:0.5,  min:0.0, max:2.0, step:0.01, label:"Vignette" },
+    { name:"uFlicker",    type:"float", value:0.1,  min:0.0, max:1.0, step:0.01, label:"Flicker" },
+  ],
+  core:`
+uniform float uCurvature;
+uniform float uScanline;
+uniform float uScanDepth;
+uniform float uMaskDepth;
+uniform float uAberration;
+uniform float uVignette;
+uniform float uFlicker;
+
+vec2 crtCurve(vec2 uv, float k){
+    uv = uv * 2.0 - 1.0;
+    vec2 offset = uv.yx * uv.yx * k;
+    uv += uv * offset;
+    return uv * 0.5 + 0.5;
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 cuv = crtCurve(uv, uCurvature);
+    if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+        return vec4(0.0, 0.0, 0.0, 1.0);
+
+    vec2 texel = 1.0 / vec2(textureSize(INPUT0, 0));
+    float ab = uAberration * texel.x * 6.0;
+    vec3 col;
+    col.r = texture(INPUT0, cuv + vec2(ab, 0.0)).r;
+    col.g = texture(INPUT0, cuv).g;
+    col.b = texture(INPUT0, cuv - vec2(ab, 0.0)).b;
+
+    // scanlines
+    float line = 0.5 + 0.5 * sin(cuv.y * res.y * 3.14159265 / max(uScanline, 1.0));
+    col *= mix(1.0, line, uScanDepth);
+
+    // RGB aperture mask
+    float m = mod(floor(cuv.x * res.x), 3.0);
+    vec3 mask = vec3(m == 0.0 ? 1.0 : 0.55, m == 1.0 ? 1.0 : 0.55, m == 2.0 ? 1.0 : 0.55);
+    col *= mix(vec3(1.0), mask, uMaskDepth);
+
+    // flicker
+    col *= 1.0 + uFlicker * 0.12 * (fract(sin(time * 91.7) * 4731.3) - 0.5);
+
+    // vignette
+    vec2 d = cuv - 0.5;
+    col *= 1.0 - uVignette * dot(d, d);
+
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 9. KUWAHARA (painterly) ---------------- */
+{ id:"kuwahara", name:"Kuwahara (Oil)",
+  desc:"Painterly / oil-paint smoothing. Picks the lowest-variance of four overlapping quadrants — flattens regions while keeping edges crisp.",
+  params:[
+    { name:"uRadius", type:"float", value:4.0, min:1.0, max:8.0, step:1.0, label:"Radius (px)" },
+  ],
+  core:`
+uniform float uRadius;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 t = 1.0 / vec2(textureSize(INPUT0, 0));
+    int r = int(clamp(uRadius, 1.0, 8.0));
+
+    vec3 m0 = vec3(0.0), m1 = vec3(0.0), m2 = vec3(0.0), m3 = vec3(0.0);
+    vec3 s0 = vec3(0.0), s1 = vec3(0.0), s2 = vec3(0.0), s3 = vec3(0.0);
+    float c0 = 0.0, c1 = 0.0, c2 = 0.0, c3 = 0.0;
+
+    for (int y = -8; y <= 8; y++){
+        if (y < -r || y > r) continue;
+        for (int x = -8; x <= 8; x++){
+            if (x < -r || x > r) continue;
+            vec3 col = texture(INPUT0, uv + vec2(float(x), float(y)) * t).rgb;
+            vec3 col2 = col * col;
+            if (x <= 0 && y <= 0){ m0 += col; s0 += col2; c0 += 1.0; }
+            if (x >= 0 && y <= 0){ m1 += col; s1 += col2; c1 += 1.0; }
+            if (x <= 0 && y >= 0){ m2 += col; s2 += col2; c2 += 1.0; }
+            if (x >= 0 && y >= 0){ m3 += col; s3 += col2; c3 += 1.0; }
+        }
+    }
+
+    m0 /= c0; m1 /= c1; m2 /= c2; m3 /= c3;
+    float v0 = dot(s0 / c0 - m0 * m0, vec3(1.0));
+    float v1 = dot(s1 / c1 - m1 * m1, vec3(1.0));
+    float v2 = dot(s2 / c2 - m2 * m2, vec3(1.0));
+    float v3 = dot(s3 / c3 - m3 * m3, vec3(1.0));
+
+    vec3 col = m0; float mv = v0;
+    if (v1 < mv){ mv = v1; col = m1; }
+    if (v2 < mv){ mv = v2; col = m2; }
+    if (v3 < mv){ mv = v3; col = m3; }
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 10. GLITCH / DATAMOSH ---------------- */
+{ id:"glitch", name:"Glitch / Datamosh",
+  desc:"Time-driven horizontal block displacement, RGB channel shift and scanline noise. Animated by uTime.",
+  params:[
+    { name:"uIntensity", type:"float", value:0.4, min:0.0, max:1.0, step:0.01, label:"Intensity" },
+    { name:"uBlock",     type:"float", value:24.0,min:2.0, max:120.0,step:1.0, label:"Block Height (px)" },
+    { name:"uSpeed",     type:"float", value:1.0, min:0.0, max:6.0, step:0.01, label:"Speed" },
+    { name:"uColorShift",type:"float", value:0.5, min:0.0, max:3.0, step:0.01, label:"Color Shift" },
+    { name:"uScanNoise", type:"float", value:0.3, min:0.0, max:1.0, step:0.01, label:"Scan Noise" },
+  ],
+  core:`
+uniform float uIntensity;
+uniform float uBlock;
+uniform float uSpeed;
+uniform float uColorShift;
+uniform float uScanNoise;
+
+float hash21(vec2 p){
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 texel = 1.0 / vec2(textureSize(INPUT0, 0));
+    float tq = floor(time * uSpeed * 12.0);
+
+    float row = floor(uv.y * res.y / max(uBlock, 1.0));
+    float n = hash21(vec2(row, tq));
+    float shift = 0.0;
+    if (n > 1.0 - uIntensity)
+        shift = (hash21(vec2(row, tq + 7.0)) - 0.5) * uIntensity * 0.25;
+
+    vec2 guv = uv + vec2(shift, 0.0);
+    float cs = uColorShift * texel.x * 18.0 * (0.5 + n);
+    vec3 col;
+    col.r = texture(INPUT0, guv + vec2(cs, 0.0)).r;
+    col.g = texture(INPUT0, guv).g;
+    col.b = texture(INPUT0, guv - vec2(cs, 0.0)).b;
+
+    float sn = hash21(vec2(floor(uv.y * res.y), tq));
+    if (sn > 1.0 - uScanNoise * 0.25)
+        col += (hash21(vec2(uv.x * res.x, tq)) - 0.5) * 0.6;
+
+    return vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`},
+
+/* ---------------- 11. ASCII ART ---------------- */
+{ id:"ascii", name:"ASCII Art",
+  desc:"Maps each block's brightness to a 5x5 character glyph (bit-coded). Mono ink/paper or colorized by the source.",
+  params:[
+    { name:"uCell",  type:"float", value:8.0, min:4.0, max:24.0, step:1.0, label:"Cell Size (px)" },
+    { name:"uColor", type:"bool",  value:false, label:"Color Chars" },
+    { name:"uInk",   type:"color", value:[0.85,0.95,0.70], label:"Ink" },
+    { name:"uPaper", type:"color", value:[0.04,0.05,0.04], label:"Paper" },
+  ],
+  core:`
+uniform float uCell;
+uniform float uColor;
+uniform vec3  uInk;
+uniform vec3  uPaper;
+
+float luma(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+
+float character(highp int n, vec2 p){
+    p = floor(p * vec2(4.0, -4.0) + 2.5);
+    if (clamp(p.x, 0.0, 4.0) == p.x && clamp(p.y, 0.0, 4.0) == p.y){
+        int a = int(round(p.x) + 5.0 * round(p.y));
+        if (((n >> a) & 1) == 1) return 1.0;
+    }
+    return 0.0;
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    float cell = max(uCell, 4.0);
+    vec2 pix = uv * res;
+    vec2 buv = (floor(pix / cell) * cell + cell * 0.5) / res;
+    vec3 src = texture(INPUT0, buv).rgb;
+    float g = luma(src);
+
+    highp int n = 4096;
+    if (g > 0.2) n = 65600;
+    if (g > 0.3) n = 163153;
+    if (g > 0.4) n = 15255086;
+    if (g > 0.5) n = 13121101;
+    if (g > 0.6) n = 15252014;
+    if (g > 0.7) n = 13195790;
+    if (g > 0.8) n = 11512810;
+
+    vec2 p = mod(pix / (cell * 0.5), 2.0) - vec2(1.0);
+    float ch = character(n, p);
+    vec3 fg = (uColor > 0.5) ? src : uInk;
+    return vec4(mix(uPaper, fg, ch), 1.0);
+}
+`},
+
+/* ---------------- 12. BLOOM / GLOW (single-pass) ---------------- */
+{ id:"bloom", name:"Bloom / Glow",
+  desc:"Bright-pass threshold plus a 32-tap weighted blur added back over the image. Single-pass approximation; see the TD file note for the higher-quality Blur-TOP chain.",
+  params:[
+    { name:"uThreshold", type:"float", value:0.6, min:0.0, max:1.0,  step:0.01, label:"Threshold" },
+    { name:"uIntensity", type:"float", value:1.0, min:0.0, max:4.0,  step:0.01, label:"Intensity" },
+    { name:"uRadius",    type:"float", value:24.0,min:1.0, max:80.0, step:1.0,  label:"Glow Radius (px)" },
+  ],
+  core:`
+uniform float uThreshold;
+uniform float uIntensity;
+uniform float uRadius;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+vec3 brightPass(vec3 c, float th){ return c * smoothstep(th, th + 0.1, luma(c)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 texel = 1.0 / vec2(textureSize(INPUT0, 0));
+    vec3 base = texture(INPUT0, uv).rgb;
+    vec3 bloom = vec3(0.0); float wsum = 0.0;
+    const int N = 32;
+    for (int i = 0; i < N; i++){
+        float fi = float(i);
+        float a = fi * 2.39996323;            // golden angle
+        float rn = sqrt(fi / float(N));        // 0..1
+        float r = rn * uRadius;
+        float w = exp(-rn * rn * 2.5);
+        vec2 off = vec2(cos(a), sin(a)) * r * texel;
+        bloom += brightPass(texture(INPUT0, uv + off).rgb, uThreshold) * w;
+        wsum += w;
+    }
+    bloom /= max(wsum, 0.0001);
+    return vec4(base + bloom * uIntensity, 1.0);
+}
+`},
+
+/* ---------------- 13. BLUR (Gaussian / Box) ---------------- */
+{ id:"blur", name:"Blur (Gauss/Box)",
+  desc:"2D kernel blur. Toggle between equal-weight box and Gaussian falloff. Radius capped at 8px (preview); use a separable Blur TOP in TD for large radii.",
+  params:[
+    { name:"uRadius",   type:"float", value:4.0, min:0.0, max:8.0, step:1.0, label:"Radius (px)" },
+    { name:"uGaussian", type:"bool",  value:true, label:"Gaussian (off=Box)" },
+  ],
+  core:`
+uniform float uRadius;
+uniform float uGaussian;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 texel = 1.0 / vec2(textureSize(INPUT0, 0));
+    int r = int(clamp(uRadius, 0.0, 8.0));
+    float sigma = max(uRadius * 0.5, 0.001);
+    vec3 sum = vec3(0.0); float wsum = 0.0;
+    for (int y = -8; y <= 8; y++){
+        if (y < -r || y > r) continue;
+        for (int x = -8; x <= 8; x++){
+            if (x < -r || x > r) continue;
+            float d2 = float(x * x + y * y);
+            float w = (uGaussian > 0.5) ? exp(-d2 / (2.0 * sigma * sigma)) : 1.0;
+            sum += texture(INPUT0, uv + vec2(float(x), float(y)) * texel).rgb * w;
+            wsum += w;
+        }
+    }
+    return vec4(sum / max(wsum, 0.0001), 1.0);
+}
+`},
+
+/* ---------------- 14. SHARPEN (unsharp mask) ---------------- */
+{ id:"sharpen", name:"Sharpen",
+  desc:"Unsharp mask: subtract a local average from the pixel and add the difference back.",
+  params:[
+    { name:"uAmount", type:"float", value:1.0, min:0.0, max:4.0, step:0.01, label:"Amount" },
+    { name:"uRadius", type:"float", value:1.0, min:1.0, max:5.0, step:0.5,  label:"Radius (px)" },
+  ],
+  core:`
+uniform float uAmount;
+uniform float uRadius;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 t = (1.0 / vec2(textureSize(INPUT0, 0))) * max(uRadius, 1.0);
+    vec3 c = texture(INPUT0, uv).rgb;
+    vec3 blur = (
+        texture(INPUT0, uv + vec2(-1.0, 0.0) * t).rgb +
+        texture(INPUT0, uv + vec2( 1.0, 0.0) * t).rgb +
+        texture(INPUT0, uv + vec2( 0.0,-1.0) * t).rgb +
+        texture(INPUT0, uv + vec2( 0.0, 1.0) * t).rgb +
+        texture(INPUT0, uv + vec2(-1.0,-1.0) * t).rgb +
+        texture(INPUT0, uv + vec2( 1.0, 1.0) * t).rgb +
+        texture(INPUT0, uv + vec2( 1.0,-1.0) * t).rgb +
+        texture(INPUT0, uv + vec2(-1.0, 1.0) * t).rgb) / 8.0;
+    vec3 col = c + (c - blur) * uAmount;
+    return vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`},
+
+/* ---------------- 15. VORONOI CRYSTALLIZE ---------------- */
+{ id:"voronoi", name:"Voronoi Crystallize",
+  desc:"Shatters the image into jittered Voronoi cells, each filled with the color sampled at its feature point. Edge width draws cell borders.",
+  params:[
+    { name:"uScale",     type:"float", value:24.0, min:4.0, max:120.0, step:1.0, label:"Cell Size (px)" },
+    { name:"uJitter",    type:"float", value:1.0,  min:0.0, max:1.0,  step:0.01, label:"Jitter" },
+    { name:"uEdge",      type:"float", value:0.0,  min:0.0, max:0.3,  step:0.005,label:"Edge Width" },
+    { name:"uEdgeColor", type:"color", value:[0.03,0.03,0.03], label:"Edge Color" },
+  ],
+  core:`
+uniform float uScale;
+uniform float uJitter;
+uniform float uEdge;
+uniform vec3  uEdgeColor;
+
+vec2 hash22(vec2 p){
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return fract(sin(p) * 43758.5453);
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    float cellPx = max(uScale, 2.0);
+    vec2 grid = res / cellPx;
+    vec2 g = uv * grid;
+    vec2 gi = floor(g), gf = fract(g);
+
+    float md = 1e9, md2 = 1e9;
+    vec2 featAbs = gi;
+    for (int y = -1; y <= 1; y++){
+        for (int x = -1; x <= 1; x++){
+            vec2 o = vec2(float(x), float(y));
+            vec2 feat = o + (hash22(gi + o) - 0.5) * uJitter;
+            float d = length(gf - feat);
+            if (d < md){ md2 = md; md = d; featAbs = gi + feat; }
+            else if (d < md2){ md2 = d; }
+        }
+    }
+
+    vec3 col = texture(INPUT0, featAbs / grid).rgb;
+    if (uEdge > 0.0){
+        float e = smoothstep(0.0, uEdge, md2 - md);
+        col = mix(uEdgeColor, col, e);
+    }
+    return vec4(col, 1.0);
+}
+`},
+
+/* ---------------- 16. RIPPLE DISPLACEMENT ---------------- */
+{ id:"ripple", name:"Ripple Displace",
+  desc:"Animated concentric ripples that push UVs radially from a center point. Driven by uTime.",
+  params:[
+    { name:"uAmplitude", type:"float", value:0.5, min:0.0, max:3.0,  step:0.01, label:"Amplitude" },
+    { name:"uFrequency", type:"float", value:30.0,min:1.0, max:120.0,step:1.0,  label:"Frequency" },
+    { name:"uSpeed",     type:"float", value:2.0, min:0.0, max:10.0, step:0.05, label:"Speed" },
+    { name:"uCenter",    type:"vec2",  value:[0.5,0.5], label:"Center" },
+  ],
+  core:`
+uniform float uAmplitude;
+uniform float uFrequency;
+uniform float uSpeed;
+uniform vec2  uCenter;
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    float aspect = res.x / res.y;
+    vec2 d = uv - uCenter;
+    vec2 da = d * vec2(aspect, 1.0);
+    float dist = length(da);
+    float wave = sin(dist * uFrequency - time * uSpeed);
+    vec2 dir = (dist > 1e-5) ? d / dist : vec2(0.0);
+    vec2 suv = uv + dir * wave * uAmplitude * 0.02;
+    return vec4(texture(INPUT0, suv).rgb, 1.0);
+}
+`},
+
+/* ---------------- 17. OILIFY (oil paint) ---------------- */
+{ id:"oilify", name:"Oilify (Oil Paint)",
+  desc:"Classic oil-paint filter: buckets the neighborhood into intensity levels, then fills with the average color of the most common level.",
+  params:[
+    { name:"uRadius", type:"float", value:4.0, min:1.0, max:8.0,  step:1.0, label:"Radius (px)" },
+    { name:"uLevels", type:"float", value:16.0,min:2.0, max:32.0, step:1.0, label:"Intensity Levels" },
+  ],
+  core:`
+uniform float uRadius;
+uniform float uLevels;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 t = 1.0 / vec2(textureSize(INPUT0, 0));
+    int r = int(clamp(uRadius, 1.0, 8.0));
+    int levels = int(clamp(uLevels, 2.0, 32.0));
+
+    int count[32];
+    vec3 avg[32];
+    for (int i = 0; i < 32; i++){ count[i] = 0; avg[i] = vec3(0.0); }
+
+    for (int y = -8; y <= 8; y++){
+        if (y < -r || y > r) continue;
+        for (int x = -8; x <= 8; x++){
+            if (x < -r || x > r) continue;
+            vec3 c = texture(INPUT0, uv + vec2(float(x), float(y)) * t).rgb;
+            int lvl = int(luma(c) * float(levels - 1) + 0.5);
+            lvl = clamp(lvl, 0, 31);
+            count[lvl] += 1;
+            avg[lvl] += c;
+        }
+    }
+
+    int mi = 0, mc = 0;
+    for (int i = 0; i < 32; i++){
+        if (i >= levels) break;
+        if (count[i] > mc){ mc = count[i]; mi = i; }
+    }
+    return vec4(avg[mi] / float(max(mc, 1)), 1.0);
+}
+`},
+
+/* ---------------- 18. GRADIENT MAP / DUOTONE LUT ---------------- */
+{ id:"lut", name:"Gradient Map LUT",
+  desc:"Color-grade by mapping luminance through a shadow/mid/highlight gradient (duotone/tritone LUT). Optional posterize for hard tonal separation.",
+  params:[
+    { name:"uLevels", type:"float", value:1.0, min:1.0, max:12.0, step:1.0, label:"Posterize (1=off)" },
+    { name:"uShadow", type:"color", value:[0.10,0.05,0.20], label:"Shadows" },
+    { name:"uMid",    type:"color", value:[0.80,0.25,0.30], label:"Midtones" },
+    { name:"uHigh",   type:"color", value:[0.98,0.90,0.55], label:"Highlights" },
+    { name:"uMix",    type:"float", value:1.0, min:0.0, max:1.0, step:0.01, label:"Mix" },
+  ],
+  core:`
+uniform float uLevels;
+uniform vec3  uShadow;
+uniform vec3  uMid;
+uniform vec3  uHigh;
+uniform float uMix;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec3 src = texture(INPUT0, uv).rgb;
+    float g = luma(src);
+    if (uLevels > 1.5){ float L = uLevels; g = floor(g * (L - 1.0) + 0.5) / (L - 1.0); }
+    vec3 grad = (g < 0.5) ? mix(uShadow, uMid, g * 2.0)
+                          : mix(uMid, uHigh, (g - 0.5) * 2.0);
+    return vec4(mix(src, grad, uMix), 1.0);
+}
+`},
+
+/* ---------------- 19. SKETCH (pencil + hatching) ---------------- */
+{ id:"sketch", name:"Sketch (Pencil)",
+  desc:"Sobel outline drawn as pencil ink on paper, plus tone-driven cross-hatching that thickens in darker areas.",
+  params:[
+    { name:"uStrength", type:"float", value:2.0, min:0.0, max:8.0, step:0.01, label:"Edge Strength" },
+    { name:"uHatch",    type:"float", value:0.7, min:0.0, max:1.0, step:0.01, label:"Hatching" },
+    { name:"uInk",      type:"color", value:[0.10,0.10,0.12], label:"Ink" },
+    { name:"uPaper",    type:"color", value:[0.95,0.93,0.86], label:"Paper" },
+  ],
+  core:`
+uniform float uStrength;
+uniform float uHatch;
+uniform vec3  uInk;
+uniform vec3  uPaper;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+float hatchLayer(vec2 p, float ang, float period){
+    float v = cos(ang) * p.x + sin(ang) * p.y;
+    float f = abs(fract(v / period) - 0.5) * 2.0;
+    return smoothstep(0.55, 0.15, f);
+}
+
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec2 t = 1.0 / vec2(textureSize(INPUT0, 0));
+    float tl = luma(texture(INPUT0, uv + vec2(-1.0,-1.0) * t).rgb);
+    float tc = luma(texture(INPUT0, uv + vec2( 0.0,-1.0) * t).rgb);
+    float tr = luma(texture(INPUT0, uv + vec2( 1.0,-1.0) * t).rgb);
+    float ml = luma(texture(INPUT0, uv + vec2(-1.0, 0.0) * t).rgb);
+    float mr = luma(texture(INPUT0, uv + vec2( 1.0, 0.0) * t).rgb);
+    float bl = luma(texture(INPUT0, uv + vec2(-1.0, 1.0) * t).rgb);
+    float bc = luma(texture(INPUT0, uv + vec2( 0.0, 1.0) * t).rgb);
+    float br = luma(texture(INPUT0, uv + vec2( 1.0, 1.0) * t).rgb);
+    float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
+    float gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
+    float edge = clamp(sqrt(gx * gx + gy * gy) * uStrength, 0.0, 1.0);
+
+    float L = luma(texture(INPUT0, uv).rgb);
+    vec2 pix = uv * res;
+    float hatch = 0.0;
+    if (uHatch > 0.001){
+        hatch = max(hatch, hatchLayer(pix, 0.785, 7.0) * step(L, 0.80));
+        hatch = max(hatch, hatchLayer(pix, -0.785, 7.0) * step(L, 0.55));
+        hatch = max(hatch, hatchLayer(pix, 0.0,   6.0) * step(L, 0.30));
+        hatch = max(hatch, hatchLayer(pix, 1.571, 6.0) * step(L, 0.15));
+    }
+    float ink = clamp(edge + hatch * uHatch, 0.0, 1.0);
+    return vec4(mix(uPaper, uInk, ink), 1.0);
+}
+`},
+
+];
+
+/* ========================= RUNTIME (shared) ========================= */
+const VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+out vec2 vUV;
+void main(){ vUV = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+const FS_WRAPPER_TOP = `#version 300 es
+precision highp float;
+in vec2 vUV;
+out vec4 fragColor;
+uniform float uTime;
+uniform vec2  uResolution;
+uniform vec2  uMouse;
+uniform sampler2D uTex0;
+#define INPUT0 uTex0
+`;
+const FS_WRAPPER_BOTTOM = `
+void main(){ fragColor = renderMain(vUV, uResolution, uTime); }`;
+
+const cv = document.getElementById("gl");
+const errBox = document.getElementById("err");
+const gl = cv.getContext("webgl2", { antialias:false });
+if (!gl){ errBox.style.display="block"; errBox.textContent="WebGL2 not supported in this browser."; }
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s) + "\n--- source ---\n" +
+      src.split("\n").map((l,i)=>(i+1)+": "+l).join("\n"));
+  return s;
+}
+
+let prog = null, uniLoc = {};
+let current = FILTERS[0];
+
+function build(){
+  try{
+    const fsSrc = FS_WRAPPER_TOP + current.core + FS_WRAPPER_BOTTOM;
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+      throw new Error(gl.getProgramInfoLog(p));
+    if (prog) gl.deleteProgram(prog);
+    prog = p; gl.useProgram(prog);
+    uniLoc = {};
+    ["uTime","uResolution","uMouse","uTex0",...current.params.map(x=>x.name)]
+      .forEach(n => uniLoc[n] = gl.getUniformLocation(prog, n));
+    gl.uniform1i(uniLoc.uTex0, 0);
+    errBox.style.display = "none";
+  }catch(e){
+    errBox.style.display = "block";
+    errBox.textContent = "SHADER COMPILE ERROR\n\n" + e.message;
+  }
+}
+
+// fullscreen triangle
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+/* ---------- texture (source image) ---------- */
+const tex = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([128,128,128,255]));
+let imgAspect = 16/9;
+
+function uploadImage(img){
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  imgAspect = (img.width || img.videoWidth) / (img.height || img.videoHeight);
+  cv.style.aspectRatio = imgAspect.toFixed(4);
+}
+
+// built-in test card so filters are visible immediately
+function makeTestCard(){
+  const c = document.createElement("canvas");
+  c.width = 1280; c.height = 720;
+  const x = c.getContext("2d");
+  const g = x.createLinearGradient(0,0,1280,720);
+  g.addColorStop(0,"#1b2a4a"); g.addColorStop(0.5,"#b8423a"); g.addColorStop(1,"#e7c14b");
+  x.fillStyle = g; x.fillRect(0,0,1280,720);
+  // color bars
+  const bars = ["#ffffff","#ffe400","#00e5e5","#00d000","#ff00ff","#ff2a2a","#1a1aff","#000000"];
+  bars.forEach((col,i)=>{ x.fillStyle=col; x.fillRect(i*160, 0, 160, 160); });
+  // circles
+  for (let i=0;i<7;i++){
+    x.beginPath();
+    x.arc(180+i*150, 420, 40+i*6, 0, Math.PI*2);
+    x.fillStyle = `hsl(${i*45},80%,60%)`; x.fill();
+  }
+  // diagonal hi-freq lines
+  x.strokeStyle="rgba(255,255,255,0.7)"; x.lineWidth=2;
+  for (let i=-720;i<1280;i+=14){ x.beginPath(); x.moveTo(i,560); x.lineTo(i+160,720); x.stroke(); }
+  // text
+  x.fillStyle="#0a0a0a"; x.font="bold 150px system-ui, sans-serif";
+  x.fillText("GLSL", 700, 430);
+  x.fillStyle="#f3f0e9"; x.font="bold 60px system-ui, sans-serif";
+  x.fillText("FILTER LAB", 700, 510);
+  return c;
+}
+uploadImage(makeTestCard());
+
+document.getElementById("file").addEventListener("change", e=>{
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = ()=>{ uploadImage(img); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(f);
+});
+
+/* ---------- param state + UI ---------- */
+let state = {}, defaults = {};
+function loadState(){
+  state = {}; defaults = {};
+  current.params.forEach(p => {
+    state[p.name]    = Array.isArray(p.value) ? [...p.value] : p.value;
+    defaults[p.name] = Array.isArray(p.value) ? [...p.value] : p.value;
+  });
+}
+
+const rgb2hex = c => "#" + c.map(v=>Math.round(v*255).toString(16).padStart(2,"0")).join("");
+const hex2rgb = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255);
+
+function buildUI(){
+  const root = document.getElementById("controls");
+  root.innerHTML = "";
+  current.params.forEach(p=>{
+    const wrap = document.createElement("div"); wrap.className = "ctl";
+    const row = document.createElement("div"); row.className = "row";
+    const lab = document.createElement("span"); lab.className = "label";
+    lab.textContent = p.label || p.name;
+    const val = document.createElement("span"); val.className = "val";
+    row.append(lab, val); wrap.append(row);
+
+    if (p.type === "float"){
+      const r = document.createElement("input");
+      r.type="range"; r.min=p.min ?? 0; r.max=p.max ?? 1;
+      r.step=p.step ?? 0.01; r.value=state[p.name];
+      val.textContent = (+state[p.name]).toFixed(2);
+      r.oninput = ()=>{ state[p.name]=+r.value; val.textContent=(+r.value).toFixed(2); };
+      wrap.append(r);
+    } else if (p.type === "vec2"){
+      val.textContent = state[p.name].map(v=>v.toFixed(2)).join(", ");
+      [0,1].forEach(i=>{
+        const r = document.createElement("input");
+        r.type="range"; r.min=p.min ?? 0; r.max=p.max ?? 1; r.step=p.step ?? 0.01;
+        r.value = state[p.name][i];
+        r.oninput = ()=>{ state[p.name][i]=+r.value;
+          val.textContent = state[p.name].map(v=>v.toFixed(2)).join(", "); };
+        wrap.append(r);
+      });
+    } else if (p.type === "color"){
+      const c = document.createElement("input");
+      c.type="color"; c.value=rgb2hex(state[p.name]); val.textContent=c.value;
+      c.oninput = ()=>{ state[p.name]=hex2rgb(c.value); val.textContent=c.value; };
+      wrap.append(c);
+    } else if (p.type === "bool"){
+      const c = document.createElement("input");
+      c.type="checkbox"; c.checked=!!state[p.name];
+      val.textContent = c.checked ? "ON":"OFF";
+      c.onchange = ()=>{ state[p.name]=c.checked; val.textContent=c.checked?"ON":"OFF"; };
+      wrap.append(c);
+    }
+    root.append(wrap);
+  });
+}
+
+/* ---------- filter selector ---------- */
+const sel = document.getElementById("filter");
+FILTERS.forEach((f,i)=>{
+  const o = document.createElement("option");
+  o.value = i; o.textContent = f.name; sel.append(o);
+});
+function selectFilter(i){
+  current = FILTERS[i];
+  document.getElementById("fdesc").textContent = current.desc;
+  loadState(); buildUI(); build();
+}
+sel.onchange = ()=> selectFilter(+sel.value);
+
+document.getElementById("reset").onclick = ()=>{
+  Object.keys(defaults).forEach(k=>{
+    state[k] = Array.isArray(defaults[k]) ? [...defaults[k]] : defaults[k]; });
+  buildUI();
+};
+
+/* ---------- mouse ---------- */
+const mouse = [0.5, 0.5];
+cv.addEventListener("pointermove", e=>{
+  const r = cv.getBoundingClientRect();
+  mouse[0] = (e.clientX - r.left) / r.width;
+  mouse[1] = 1.0 - (e.clientY - r.top) / r.height;
+});
+
+/* ---------- render loop ---------- */
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(cv.clientWidth * dpr));
+  const h = Math.max(1, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h){ cv.width=w; cv.height=h; gl.viewport(0,0,w,h); }
+}
+
+let frames = 0, lastFPS = performance.now();
+const t0 = performance.now();
+function frame(){
+  resize();
+  if (prog){
+    gl.useProgram(prog);
+    const t = (performance.now() - t0) / 1000;
+    gl.uniform1f(uniLoc.uTime, t);
+    gl.uniform2f(uniLoc.uResolution, cv.width, cv.height);
+    gl.uniform2f(uniLoc.uMouse, mouse[0], mouse[1]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    current.params.forEach(p=>{
+      const loc = uniLoc[p.name]; if (loc === null || loc === undefined) return;
+      const v = state[p.name];
+      if (p.type === "float") gl.uniform1f(loc, v);
+      else if (p.type === "bool") gl.uniform1f(loc, v ? 1.0 : 0.0);
+      else if (p.type === "vec2") gl.uniform2f(loc, v[0], v[1]);
+      else if (p.type === "color") gl.uniform3f(loc, v[0], v[1], v[2]);
+    });
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  frames++;
+  const now = performance.now();
+  if (now - lastFPS > 500){
+    document.getElementById("hud").textContent =
+      current.name.toUpperCase() + " — " + Math.round(frames*1000/(now-lastFPS)) + " FPS";
+    frames = 0; lastFPS = now;
+  }
+  requestAnimationFrame(frame);
+}
+
+cv.style.aspectRatio = imgAspect.toFixed(4);
+document.getElementById("meta").textContent =
+  "WEBGL2 / GLSL ES 3.00 — EACH CORE PORTS 1:1 TO TD GLSL TOP (td/*_td.glsl)";
+selectFilter(0);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

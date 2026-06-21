@@ -1,21 +1,20 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Renderer } from "../gl/renderer";
-import type { ParamDef, ParamState } from "../filters/types";
+import { SimRenderer } from "../gl/simRenderer";
+import type { ParamState } from "../filters/types";
+import type { SimModule } from "../sims/types";
 import type { Pointer } from "../lib/pointer";
 
-// Drives the single-pass filter Renderer. Reads param state + pointer through
-// refs so the rAF loop never closes over stale values. `active` gates drawing so
-// the off-screen canvas costs nothing while a sim is showing.
-export function useRenderer(
+// Drives the stateful multi-pass SimRenderer. Same gating contract as
+// useRenderer: refs for live values, `active` to pause when off-screen.
+export function useSimRenderer(
   canvasRef: RefObject<HTMLCanvasElement>,
-  core: string | undefined,
-  params: ParamDef[] | undefined,
+  mod: SimModule | null,
   stateRef: RefObject<ParamState>,
   pointerRef: RefObject<Pointer>,
   source: TexImageSource | null,
   active: boolean,
 ) {
-  const ref = useRef<Renderer | null>(null);
+  const ref = useRef<SimRenderer | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +23,9 @@ export function useRenderer(
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv) return;
-    let r: Renderer;
+    let r: SimRenderer;
     try {
-      r = new Renderer(cv);
+      r = new SimRenderer(cv);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       return;
@@ -39,7 +38,7 @@ export function useRenderer(
     const loop = () => {
       if (activeRef.current) {
         const now = performance.now();
-        r.render((now - t0) / 1000, stateRef.current ?? {}, pointerRef.current!.pos);
+        r.render((now - t0) / 1000, stateRef.current ?? {}, pointerRef.current!);
         frames++;
         if (now - last > 500) {
           setFps(Math.round((frames * 1000) / (now - last)));
@@ -52,14 +51,15 @@ export function useRenderer(
     raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
+      r.dispose();
       ref.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (ref.current && core) setError(ref.current.setCore(core, params ?? []));
-  }, [core, params]);
+    if (ref.current && mod) setError(ref.current.setModule(mod));
+  }, [mod]);
 
   useEffect(() => {
     if (ref.current && source) ref.current.setImage(source);

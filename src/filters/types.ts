@@ -14,7 +14,7 @@ export interface ParamDef {
   label: string;                      // UI label / TD setup comment
 }
 
-export type FilterGroup = "Pixel" | "Tone" | "Stylize" | "Optical" | "Distort";
+export type FilterGroup = "Pixel" | "Tone" | "Stylize" | "Optical" | "Distort" | "Water" | "Simulation";
 
 export interface FilterMeta {
   id: string;

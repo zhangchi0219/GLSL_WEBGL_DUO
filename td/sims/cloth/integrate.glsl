@@ -1,13 +1,15 @@
 // ============================================================
-// 2D Fluid (Stable) — pass "clearVel" → buffer "vel"
+// Sheer Veil — pass "integrate" → buffer "pos"
 // TouchDesigner GLSL TOP kernel (GLSL 4.60). AUTO-GENERATED.
 // Output res = this TOP's res; keep it at the buffer's resolution.
 // Connect inputs in this exact order:
-//   (no inputs)
+//   Input 0: pos (Feedback TOP loop)
+//   Input 1: vel buffer TOP
 // ============================================================
 
 layout(location = 0) out vec4 fragColor;
-
+#define INPUT0 sTD2DInputs[0]
+#define INPUT1 sTD2DInputs[1]
 
 #define uResolution (uTDOutputInfo.res.zw)
 #define uTexel (uTDOutputInfo.res.xy)
@@ -23,7 +25,19 @@ uniform float uMouseDown;  // Mouse In CHOP left button
 // add them on the Vectors page with the values from NETWORK.md.
 
 // ===================== SHARED CORE =====================
-vec4 renderMain(vec2 uv, vec2 res, float time){ return vec4(0.0); }
+uniform float uPinTop;
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    vec3 P   = texture(INPUT0, uv).xyz;       // displacement from rest
+    vec3 vel = texture(INPUT1, uv).xyz;
+    P += vel * uDt;
+
+    // pin the top row(s) live (computed from the uniform so the toggle responds
+    // immediately — init only re-runs on a resize). Rest = zero displacement.
+    float pinned = uPinTop * step(1.0 - uTexel.y * 1.5, uv.y);
+    if (pinned > 0.5) P = vec3(0.0);
+
+    return vec4(P, 0.0);
+}
 // =================== END SHARED CORE ===================
 
 void main(){

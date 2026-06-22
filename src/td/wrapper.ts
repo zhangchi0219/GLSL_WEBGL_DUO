@@ -78,10 +78,6 @@ Inputs: Input 0 = source TOP (sampled as INPUT0).${perf}${extra}
 // that feedback. The pass cores are the SAME strings the web app runs.
 // ---------------------------------------------------------------------------
 
-function declParams(params: ParamDef[]): string {
-  return params.map((p) => `uniform ${tdType(p)} ${p.name};`).join("\n");
-}
-
 function inputLabel(pass: SimPassDef, name: string): string {
   return name === "self" ? `${pass.out} (Feedback TOP loop)` : name === "source" ? "source image TOP" : `${name} buffer TOP`;
 }
@@ -116,7 +112,8 @@ uniform float uFrame;      // absTime.frame
 uniform vec2  uMouse;      // Mouse In CHOP (normalized, y-up)
 uniform vec2  uMouseVel;   // Mouse In CHOP slope (tx,ty)
 uniform float uMouseDown;  // Mouse In CHOP left button
-${declParams(mod.params)}
+// Custom params (uForce, uRadius, …) are declared by the SHARED CORE below —
+// add them on the Vectors page with the values from NETWORK.md.
 
 // ===================== SHARED CORE =====================
 ${pass.core.trim()}
@@ -142,6 +139,10 @@ export function simNetworkMd(mod: SimModule): string {
   const paramLines = mod.params
     .map((p) => `  ${p.name}  ${tdType(p)}  ${fmtValue(p)}  (${p.label})`)
     .join("\n");
+  const iterNote = mod.step
+    .filter((p) => (p.iterations ?? 1) > 1)
+    .map((p) => `- The **${p.name}** kernel runs ${p.iterations}× per frame — loop its Feedback TOP that many cooks, or chain that many copies.\n`)
+    .join("");
 
   return `# ${mod.meta.name} — TouchDesigner network
 
@@ -178,8 +179,7 @@ GLSL TOP's resolution to its buffer's resolution.
 - For each buffer B: GLSL TOP \`<pass>\` → Feedback TOP \`B_fb\` → back into the
   GLSL TOP's \`self\` input. Order the per-frame passes as listed (a chain of GLSL
   TOPs sharing the feedback buffers).
-- The **pressure** kernel runs ${mod.step.find((p) => p.name === "pressure")?.iterations ?? 1}× — loop its Feedback TOP that many cooks, or chain that many copies.
-- Note: matching the browser exactly is fiddly; this reproduces the same kernels.
+${iterNote}- Note: matching the browser exactly is fiddly; this reproduces the same kernels.
   For production fluid in TD, also consider native nodes, but these kernels are
   the faithful port of the web version.
 `;

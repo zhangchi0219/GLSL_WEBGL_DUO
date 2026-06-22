@@ -54,7 +54,7 @@ GLSL TOP's resolution to its buffer's resolution.
 - For each buffer B: GLSL TOP `<pass>` → Feedback TOP `B_fb` → back into the
   GLSL TOP's `self` input. Order the per-frame passes as listed (a chain of GLSL
   TOPs sharing the feedback buffers).
-- The **pressure** kernel runs 25× — loop its Feedback TOP that many cooks, or chain that many copies.
+- The **pressure** kernel runs 25× per frame — loop its Feedback TOP that many cooks, or chain that many copies.
 - Note: matching the browser exactly is fiddly; this reproduces the same kernels.
   For production fluid in TD, also consider native nodes, but these kernels are
   the faithful port of the web version.

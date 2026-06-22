@@ -39,8 +39,9 @@ for (const entry of registry) {
   doneSims.add(mod.meta.id);
   const outDir = join(simsRoot, mod.meta.id);
   mkdirSync(outDir, { recursive: true });
-  for (const file of simTDFiles(mod)) writeFileSync(join(outDir, file.name), file.text);
-  console.log(`wrote td/sims/${mod.meta.id}/ (${simTDFiles(mod).length} files)`);
+  const files = simTDFiles(mod);
+  for (const file of files) writeFileSync(join(outDir, file.name), file.text);
+  console.log(`wrote td/sims/${mod.meta.id}/ (${files.length} files)`);
   nSims++;
 }
 

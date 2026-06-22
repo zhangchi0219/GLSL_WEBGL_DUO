@@ -1,5 +1,5 @@
 // ============================================================
-// 2D Fluid (Stable) — pass "clearVel" → buffer "vel"
+// Sheer Veil — pass "seedPos" → buffer "pos"
 // TouchDesigner GLSL TOP kernel (GLSL 4.60). AUTO-GENERATED.
 // Output res = this TOP's res; keep it at the buffer's resolution.
 // Connect inputs in this exact order:
@@ -23,7 +23,9 @@ uniform float uMouseDown;  // Mouse In CHOP left button
 // add them on the Vectors page with the values from NETWORK.md.
 
 // ===================== SHARED CORE =====================
-vec4 renderMain(vec2 uv, vec2 res, float time){ return vec4(0.0); }
+vec4 renderMain(vec2 uv, vec2 res, float time){
+    return vec4(0.0);   // zero displacement = flat sheet at rest
+}
 // =================== END SHARED CORE ===================
 
 void main(){

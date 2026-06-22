@@ -19,15 +19,8 @@ uniform float uFrame;      // absTime.frame
 uniform vec2  uMouse;      // Mouse In CHOP (normalized, y-up)
 uniform vec2  uMouseVel;   // Mouse In CHOP slope (tx,ty)
 uniform float uMouseDown;  // Mouse In CHOP left button
-uniform float uForce;
-uniform float uRadius;
-uniform float uDyeAmount;
-uniform float uVorticity;
-uniform float uVelDiss;
-uniform float uDyeDiss;
-uniform float uPressureDecay;
-uniform float uColorShift;
-uniform float uSourceMix;
+// Custom params (uForce, uRadius, …) are declared by the SHARED CORE below —
+// add them on the Vectors page with the values from NETWORK.md.
 
 // ===================== SHARED CORE =====================
 uniform float uDyeAmount;

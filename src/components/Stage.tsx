@@ -18,13 +18,14 @@ interface Props {
 
 // Two canvases share the stage; only the active engine's canvas is shown, so the
 // filter Renderer and the sim SimRenderer each keep their own GL context without
-// conflict. Pointer events feed the shared Pointer used by both.
+// conflict. Pointer handlers live on the canvases (not the stage) so uv is read
+// from the canvas rect — the stage letterboxes the canvas, so its rect is wrong.
 export function Stage({ filterRef, simRef, kind, aspect, error, fps, name, handlers }: Props) {
   const ar = String(aspect);
   return (
-    <div className="stage" {...handlers}>
-      <canvas ref={filterRef} style={{ aspectRatio: ar, display: kind === "filter" ? "block" : "none" }} />
-      <canvas ref={simRef} style={{ aspectRatio: ar, display: kind === "sim" ? "block" : "none" }} />
+    <div className="stage">
+      <canvas ref={filterRef} {...handlers} style={{ aspectRatio: ar, display: kind === "filter" ? "block" : "none" }} />
+      <canvas ref={simRef} {...handlers} style={{ aspectRatio: ar, display: kind === "sim" ? "block" : "none" }} />
       <div className="hud">
         {name.toUpperCase()} — {fps} FPS{kind === "sim" ? " · DRAG TO DISTURB" : ""}
       </div>

@@ -59,6 +59,8 @@ export const registry: RegistryEntry[] = [
   { kind: "sim", id: "ripple-rain", name: "Raindrop Ripples", group: "Simulation", load: () => import("../sims/waterRipple").then((m) => m.rain) },
   { kind: "sim", id: "ripple-pointer", name: "Interactive Ripple", group: "Simulation", load: () => import("../sims/waterRipple").then((m) => m.pointer) },
   { kind: "sim", id: "fluid", name: "2D Fluid (Stable)", group: "Simulation", load: () => import("../sims/fluid").then((m) => m.fluid) },
+  { kind: "sim", id: "cloth-veil", name: "Sheer Veil", group: "Simulation", load: () => import("../sims/cloth").then((m) => m.veil) },
+  { kind: "sim", id: "cloth-banner", name: "Hanging Banner", group: "Simulation", load: () => import("../sims/cloth").then((m) => m.banner) },
 ];
 
 export const GROUP_ORDER: FilterGroup[] = [

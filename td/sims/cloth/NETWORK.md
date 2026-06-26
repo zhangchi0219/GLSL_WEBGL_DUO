@@ -1,6 +1,6 @@
 # Sheer Veil — TouchDesigner network
 
-A floating sheer fabric blown by wind, composited over the image. Drag to grab and deform the cloth; see-through, with edges and folds reading more opaque.
+A single sheer fabric panel floating in the center, blown by wind over the image. Drag to grab and deform it; see-through, with edges and folds reading more opaque. Move/resize it with Cloth Center / Cloth Size.
 
 A stateful simulation is a small **network**, not one TOP. Each buffer below lives
 in a **Feedback TOP** loop; a GLSL TOP (one per kernel) reads the feedback via its
@@ -26,17 +26,19 @@ Vectors page / CHOP exports:
   uMouse      vec2   Mouse In CHOP (tx,ty), normalized 0-1, y-up
   uMouseVel   vec2   Mouse In CHOP slope (use a Slope CHOP on tx,ty)
   uMouseDown  float  Mouse In CHOP left button
+  uClothCenter  vec2  0.5 0.5  (Cloth Center)
+  uClothSize  vec2  0.22 0.3  (Cloth Size)
   uStiffness  float  16.0  (Stiffness)
-  uTether  float  6.0  (Anchor)
+  uTether  float  3.0  (Anchor)
   uDamping  float  0.96  (Damping)
   uGravity  float  0.0  (Gravity)
-  uWind  float  0.8  (Wind)
+  uWind  float  1.0  (Wind)
   uPinTop  float  0  (Pin Top Edge)
   uGrabRadius  float  0.12  (Grab Radius)
   uPointerForce  float  1.2  (Grab Force)
   uRefraction  float  0.08  (Refraction)
   uNormalScale  float  8.0  (Wrinkle Sharpness)
-  uBaseOpacity  float  0.25  (Base Opacity)
+  uBaseOpacity  float  0.5  (Base Opacity)
   uFresnelPow  float  2.5  (Fresnel Power)
   uSheen  float  0.4  (Sheen)
   uTint  vec3  0.85 0.88 0.95  (Fabric Tint)

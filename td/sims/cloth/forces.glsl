@@ -32,15 +32,20 @@ uniform float uGravity;
 uniform float uWind;
 uniform float uGrabRadius;
 uniform float uPointerForce;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
 
 float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 
+// Is the rest position uv inside the centered cloth panel?
+bool inCloth(vec2 uv){ vec2 d = abs(uv - uClothCenter); return d.x < uClothSize.x && d.y < uClothSize.y; }
+
 // Strain spring pulling P toward the neighbor at offset off (uv), rest length rest.
 // P, Q are DISPLACEMENTS; the constant grid offset is added back exactly so the
-// neighbor distance keeps full precision despite half-float storage. At a clamped
-// edge the sample returns this particle's own displacement, so d == vec3(off,0) →
-// strain 0 → no force (a free edge), which is the intended boundary.
+// neighbor distance keeps full precision despite half-float storage. A neighbor
+// outside the panel is a free edge (no spring), so the bounded sheet's borders flap.
 vec3 spring(vec3 P, vec2 uv, vec2 off, float rest, float k){
+    if (!inCloth(uv + off)) return vec3(0.0); // free edge at the panel boundary
     vec3 Q = texture(INPUT1, uv + off).xyz;
     vec3 d = vec3(off, 0.0) + (Q - P);
     float len = length(d);

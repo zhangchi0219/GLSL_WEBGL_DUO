@@ -31,6 +31,15 @@ uniform float uBaseOpacity;
 uniform float uFresnelPow;
 uniform float uSheen;
 uniform vec3  uTint;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
+
+// Soft-edged membership of the centered panel: 1 inside, 0 outside, smooth border.
+float clothMask(vec2 uv){
+    vec2 d = uClothSize - abs(uv - uClothCenter);          // >0 inside on each axis
+    float edge = min(uClothSize.x, uClothSize.y) * 0.12;   // soft border width
+    return smoothstep(0.0, edge, min(d.x, d.y));
+}
 
 vec4 renderMain(vec2 uv, vec2 res, float time){
     vec2 t = uTexel;
@@ -54,6 +63,10 @@ vec4 renderMain(vec2 uv, vec2 res, float time){
     // Fresnel opacity: grazing folds read more opaque, like real chiffon/voile
     float fres  = pow(clamp(1.0 - n.z, 0.0, 1.0), uFresnelPow);
     float alpha = clamp(uBaseOpacity + (1.0 - uBaseOpacity) * fres, 0.0, 1.0);
+
+    // confine the fabric to the centered panel; sample the mask at the displaced
+    // position so the soft silhouette waves with the in-plane billow
+    alpha *= clothMask(uv - disp);
 
     float sheen = pow(clamp(dot(n, normalize(vec3(0.3, 0.5, 1.0))), 0.0, 1.0), 18.0);
     vec3 fabric = refr * uTint + uSheen * sheen;

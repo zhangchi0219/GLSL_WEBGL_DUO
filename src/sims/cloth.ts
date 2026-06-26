@@ -43,15 +43,20 @@ uniform float uGravity;
 uniform float uWind;
 uniform float uGrabRadius;
 uniform float uPointerForce;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
 
 float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 
+// Is the rest position uv inside the centered cloth panel?
+bool inCloth(vec2 uv){ vec2 d = abs(uv - uClothCenter); return d.x < uClothSize.x && d.y < uClothSize.y; }
+
 // Strain spring pulling P toward the neighbor at offset off (uv), rest length rest.
 // P, Q are DISPLACEMENTS; the constant grid offset is added back exactly so the
-// neighbor distance keeps full precision despite half-float storage. At a clamped
-// edge the sample returns this particle's own displacement, so d == vec3(off,0) →
-// strain 0 → no force (a free edge), which is the intended boundary.
+// neighbor distance keeps full precision despite half-float storage. A neighbor
+// outside the panel is a free edge (no spring), so the bounded sheet's borders flap.
 vec3 spring(vec3 P, vec2 uv, vec2 off, float rest, float k){
+    if (!inCloth(uv + off)) return vec3(0.0); // free edge at the panel boundary
     vec3 Q = texture(INPUT1, uv + off).xyz;
     vec3 d = vec3(off, 0.0) + (Q - P);
     float len = length(d);
@@ -108,17 +113,24 @@ vec4 renderMain(vec2 uv, vec2 res, float time){
 }
 `;
 
-// pos (INPUT0) ← pos + vel (INPUT1) * dt, with a live top-edge pin.
+// pos (INPUT0) ← pos + vel (INPUT1) * dt, confined to the panel, with a region-top pin.
 const INTEGRATE = /* glsl */ `
 uniform float uPinTop;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
+bool inCloth(vec2 uv){ vec2 d = abs(uv - uClothCenter); return d.x < uClothSize.x && d.y < uClothSize.y; }
 vec4 renderMain(vec2 uv, vec2 res, float time){
     vec3 P   = texture(INPUT0, uv).xyz;       // displacement from rest
     vec3 vel = texture(INPUT1, uv).xyz;
     P += vel * uDt;
 
-    // pin the top row(s) live (computed from the uniform so the toggle responds
-    // immediately — init only re-runs on a resize). Rest = zero displacement.
-    float pinned = uPinTop * step(1.0 - uTexel.y * 1.5, uv.y);
+    // particles outside the panel stay flat at rest (contribute nothing)
+    if (!inCloth(uv)) return vec4(0.0);
+
+    // pin the panel's TOP row(s) live (computed from the uniform so the toggle
+    // responds immediately — init only re-runs on a resize). Rest = zero disp.
+    float top = uClothCenter.y + uClothSize.y;
+    float pinned = uPinTop * step(top - uTexel.y * 1.5, uv.y);
     if (pinned > 0.5) P = vec3(0.0);
 
     return vec4(P, 0.0);
@@ -133,6 +145,15 @@ uniform float uBaseOpacity;
 uniform float uFresnelPow;
 uniform float uSheen;
 uniform vec3  uTint;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
+
+// Soft-edged membership of the centered panel: 1 inside, 0 outside, smooth border.
+float clothMask(vec2 uv){
+    vec2 d = uClothSize - abs(uv - uClothCenter);          // >0 inside on each axis
+    float edge = min(uClothSize.x, uClothSize.y) * 0.12;   // soft border width
+    return smoothstep(0.0, edge, min(d.x, d.y));
+}
 
 vec4 renderMain(vec2 uv, vec2 res, float time){
     vec2 t = uTexel;
@@ -157,6 +178,10 @@ vec4 renderMain(vec2 uv, vec2 res, float time){
     float fres  = pow(clamp(1.0 - n.z, 0.0, 1.0), uFresnelPow);
     float alpha = clamp(uBaseOpacity + (1.0 - uBaseOpacity) * fres, 0.0, 1.0);
 
+    // confine the fabric to the centered panel; sample the mask at the displaced
+    // position so the soft silhouette waves with the in-plane billow
+    alpha *= clothMask(uv - disp);
+
     float sheen = pow(clamp(dot(n, normalize(vec3(0.3, 0.5, 1.0))), 0.0, 1.0), 18.0);
     vec3 fabric = refr * uTint + uSheen * sheen;
 
@@ -171,6 +196,8 @@ const display: SimPassDef = { name: "display", core: DISPLAY, out: "screen", inp
 
 function baseParams(): ParamDef[] {
   return [
+    { name: "uClothCenter", type: "vec2", value: [0.5, 0.5], min: 0.0, max: 1.0, step: 0.01, label: "Cloth Center" },
+    { name: "uClothSize", type: "vec2", value: [0.22, 0.30], min: 0.05, max: 0.5, step: 0.01, label: "Cloth Size" },
     { name: "uStiffness", type: "float", value: 16.0, min: 0.0, max: 60.0, step: 0.5, label: "Stiffness" },
     { name: "uTether", type: "float", value: 6.0, min: 0.0, max: 30.0, step: 0.1, label: "Anchor" },
     { name: "uDamping", type: "float", value: 0.96, min: 0.8, max: 0.995, step: 0.001, label: "Damping" },
@@ -181,7 +208,7 @@ function baseParams(): ParamDef[] {
     { name: "uPointerForce", type: "float", value: 1.2, min: 0.0, max: 5.0, step: 0.01, label: "Grab Force" },
     { name: "uRefraction", type: "float", value: 0.08, min: 0.0, max: 0.4, step: 0.001, label: "Refraction" },
     { name: "uNormalScale", type: "float", value: 8.0, min: 0.5, max: 40.0, step: 0.1, label: "Wrinkle Sharpness" },
-    { name: "uBaseOpacity", type: "float", value: 0.25, min: 0.0, max: 1.0, step: 0.01, label: "Base Opacity" },
+    { name: "uBaseOpacity", type: "float", value: 0.5, min: 0.0, max: 1.0, step: 0.01, label: "Base Opacity" },
     { name: "uFresnelPow", type: "float", value: 2.5, min: 0.5, max: 6.0, step: 0.05, label: "Fresnel Power" },
     { name: "uSheen", type: "float", value: 0.4, min: 0.0, max: 2.0, step: 0.01, label: "Sheen" },
     { name: "uTint", type: "color", value: [0.85, 0.88, 0.95], label: "Fabric Tint" },
@@ -212,12 +239,12 @@ function make(name: string, desc: string, overrides: Record<string, number | boo
 
 export const veil = make(
   "Sheer Veil",
-  "A floating sheer fabric blown by wind, composited over the image. Drag to grab and deform the cloth; see-through, with edges and folds reading more opaque.",
-  { uGravity: 0.0, uWind: 0.8, uPinTop: false },
+  "A single sheer fabric panel floating in the center, blown by wind over the image. Drag to grab and deform it; see-through, with edges and folds reading more opaque. Move/resize it with Cloth Center / Cloth Size.",
+  { uGravity: 0.0, uWind: 1.0, uTether: 3.0, uPinTop: false },
 );
 
 export const banner = make(
   "Hanging Banner",
-  "Top-pinned chiffon hanging under gravity with a gentle breeze. Drag to push the cloth around; release and watch it settle.",
-  { uGravity: 0.6, uWind: 0.25, uPinTop: true },
+  "A centered chiffon panel pinned at its top edge, hanging under gravity with a gentle breeze. Drag to push it around; release and watch it settle.",
+  { uGravity: 0.6, uWind: 0.3, uTether: 4.0, uPinTop: true },
 );

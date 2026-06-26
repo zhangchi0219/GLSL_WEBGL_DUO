@@ -26,14 +26,21 @@ uniform float uMouseDown;  // Mouse In CHOP left button
 
 // ===================== SHARED CORE =====================
 uniform float uPinTop;
+uniform vec2  uClothCenter;
+uniform vec2  uClothSize;
+bool inCloth(vec2 uv){ vec2 d = abs(uv - uClothCenter); return d.x < uClothSize.x && d.y < uClothSize.y; }
 vec4 renderMain(vec2 uv, vec2 res, float time){
     vec3 P   = texture(INPUT0, uv).xyz;       // displacement from rest
     vec3 vel = texture(INPUT1, uv).xyz;
     P += vel * uDt;
 
-    // pin the top row(s) live (computed from the uniform so the toggle responds
-    // immediately — init only re-runs on a resize). Rest = zero displacement.
-    float pinned = uPinTop * step(1.0 - uTexel.y * 1.5, uv.y);
+    // particles outside the panel stay flat at rest (contribute nothing)
+    if (!inCloth(uv)) return vec4(0.0);
+
+    // pin the panel's TOP row(s) live (computed from the uniform so the toggle
+    // responds immediately — init only re-runs on a resize). Rest = zero disp.
+    float top = uClothCenter.y + uClothSize.y;
+    float pinned = uPinTop * step(top - uTexel.y * 1.5, uv.y);
     if (pinned > 0.5) P = vec3(0.0);
 
     return vec4(P, 0.0);

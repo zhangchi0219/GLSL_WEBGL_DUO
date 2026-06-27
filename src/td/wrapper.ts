@@ -1,5 +1,6 @@
 import type { FilterModule, ParamDef } from "../filters/types";
 import type { SimModule, SimPassDef } from "../sims/types";
+import { REGION_GLSL, REGION_PARAMS } from "../gl/regionMask";
 
 // Wrap a filter's shared core in the TouchDesigner GLSL TOP boilerplate and a
 // setup comment block. Used by BOTH the in-app "Download for TouchDesigner"
@@ -29,7 +30,7 @@ export function wrapTD(m: FilterModule): string {
   const timeArg = animated ? "uTime" : "0.0";
   const timeUniform = animated ? "uniform float uTime;\n\n" : "";
 
-  const setup = params
+  const setup = [...params, ...REGION_PARAMS]
     .map((p) => `  ${pad(p.name, 13)}${pad(tdType(p), 6)}${pad(fmtValue(p), 14)} ${p.label}`)
     .join("\n");
   const timeSetup = animated
@@ -55,8 +56,10 @@ layout(location = 0) out vec4 fragColor;
 ${core.trim()}
 // =================== END SHARED CORE ===================
 
-${timeUniform}void main(){
-    fragColor = TDOutputSwizzle(renderMain(vUV.st, uTDOutputInfo.res.zw, ${timeArg}));
+${timeUniform}${REGION_GLSL}
+void main(){
+    vec4 eff = renderMain(vUV.st, uTDOutputInfo.res.zw, ${timeArg});
+    fragColor = TDOutputSwizzle(_applyMask(eff, texture(INPUT0, vUV.st), vUV.st));
 }
 
 /* ============ TOUCHDESIGNER SETUP ============

@@ -2,6 +2,8 @@
 // Mirrors the TouchDesigner wrapper (td/wrapper.ts): same uniform names, same
 // INPUT0 macro — that is what keeps the core byte-identical across both targets.
 
+import { REGION_GLSL } from "./regionMask";
+
 export const VS = `#version 300 es
 layout(location=0) in vec2 aPos;
 out vec2 vUV;
@@ -18,8 +20,11 @@ uniform sampler2D uTex0;
 #define INPUT0 uTex0
 `;
 
-export const FS_BOTTOM = `
-void main(){ fragColor = renderMain(vUV, uResolution, uTime); }`;
+export const FS_BOTTOM = REGION_GLSL + `
+void main(){
+  vec4 eff = renderMain(vUV, uResolution, uTime);
+  fragColor = _applyMask(eff, texture(uTex0, vUV), vUV);
+}`;
 
 // Sim wrapper: same entry (renderMain) but up to three inputs and the extra
 // simulation uniforms. uResolution/uTexel are the CURRENT pass's target size.

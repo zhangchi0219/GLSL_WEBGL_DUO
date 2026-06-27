@@ -42,6 +42,8 @@ export const registry: RegistryEntry[] = [
   { kind: "filter", id: "oilify", name: "Oilify (Oil Paint)", group: "Stylize", load: () => import("./oilify").then(f) },
   { kind: "filter", id: "sketch", name: "Sketch (Pencil)", group: "Stylize", load: () => import("./sketch").then(f) },
 
+  { kind: "filter", id: "noisewarp", name: "Domain-Warped Noise", group: "Generative", load: () => import("./noisewarp").then(f) },
+
   { kind: "filter", id: "crt", name: "CRT / Scanlines", group: "Optical", load: () => import("./crt").then(f) },
   { kind: "filter", id: "chromatic", name: "Chromatic Aberration", group: "Optical", load: () => import("./chromatic").then(f) },
   { kind: "filter", id: "bloom", name: "Bloom / Glow", group: "Optical", load: () => import("./bloom").then(f) },
@@ -64,5 +66,5 @@ export const registry: RegistryEntry[] = [
 ];
 
 export const GROUP_ORDER: FilterGroup[] = [
-  "Pixel", "Tone", "Stylize", "Optical", "Distort", "Water", "Simulation",
+  "Pixel", "Tone", "Stylize", "Generative", "Optical", "Distort", "Water", "Simulation",
 ];

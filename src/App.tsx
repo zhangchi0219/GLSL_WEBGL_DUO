@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { registry } from "./filters/registry";
 import { defaultState, type FilterModule, type ParamState } from "./filters/types";
-import { REGION_PARAMS } from "./gl/regionMask";
 import type { SimModule } from "./sims/types";
 import { wrapTD, simBundle } from "./td/wrapper";
 import { useRenderer } from "./hooks/useRenderer";
@@ -35,12 +34,9 @@ export default function App() {
     if (w && h) setAspect(w / h);
   }, [source]);
 
-  // every filter gets the shared two-box effect mask appended to its own params
-  const filterParams = filterMod ? [...filterMod.params, ...REGION_PARAMS] : undefined;
-
   const filterCanvas = useRef<HTMLCanvasElement>(null);
   const simCanvas = useRef<HTMLCanvasElement>(null);
-  const fr = useRenderer(filterCanvas, filterMod?.core, filterParams, stateRef, pointerRef, source, kind === "filter");
+  const fr = useRenderer(filterCanvas, filterMod?.core, filterMod?.params, stateRef, pointerRef, source, kind === "filter");
   const sr = useSimRenderer(simCanvas, simMod, stateRef, pointerRef, source, kind === "sim");
 
   // load the active module, reset params to defaults
@@ -51,8 +47,7 @@ export default function App() {
       if (!alive) return;
       if (e.kind === "filter") setFilterMod(m as FilterModule);
       else setSimMod(m as SimModule);
-      const loaded = (m as FilterModule | SimModule).params;
-      setState(defaultState(e.kind === "filter" ? [...loaded, ...REGION_PARAMS] : loaded));
+      setState(defaultState((m as FilterModule | SimModule).params));
     });
     return () => {
       alive = false;
@@ -60,7 +55,7 @@ export default function App() {
   }, [activeId]);
 
   const meta = kind === "filter" ? filterMod?.meta : simMod?.meta;
-  const params = (kind === "filter" ? filterParams : simMod?.params) ?? [];
+  const params = (kind === "filter" ? filterMod?.params : simMod?.params) ?? [];
   const error = (kind === "filter" ? fr.error : sr.error) ?? null;
   const fps = kind === "filter" ? fr.fps : sr.fps;
 

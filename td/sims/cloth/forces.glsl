@@ -1,9 +1,12 @@
 // ============================================================
 // Sheer Veil — pass "forces" → buffer "vel"
-// TouchDesigner GLSL TOP kernel (GLSL 4.60). AUTO-GENERATED.
+// GLSL TOP kernel (GLSL 4.60). AUTO-GENERATED.
+// Target: TouchDesigner 2022.24200+ (Vulkan), GLSL 4.60, Vertex/Pixel.
+// TOP: glsl_forces; Pixel Shader DAT: shader_forces.
+
 // Output res = this TOP's res; keep it at the buffer's resolution.
 // Connect inputs in this exact order:
-//   Input 0: vel (Feedback TOP loop)
+//   Input 0: vel current state (see NETWORK.md for its exact producer)
 //   Input 1: pos buffer TOP
 // ============================================================
 
@@ -13,11 +16,13 @@ layout(location = 0) out vec4 fragColor;
 
 #define uResolution (uTDOutputInfo.res.zw)
 #define uTexel (uTDOutputInfo.res.xy)
+#define uIteration float(uTDPass)
 
 // Wire these on the Vectors / CHOP pages (see NETWORK.md):
 uniform float uTime;       // absTime.seconds
 uniform float uDt;         // 1.0/me.time.rate (or a Constant CHOP)
 uniform float uFrame;      // absTime.frame
+uniform vec2  uCanvasResolution; // display TOP resolution, even on data passes
 uniform vec2  uMouse;      // Mouse In CHOP (normalized, y-up)
 uniform vec2  uMouseVel;   // Mouse In CHOP slope (tx,ty)
 uniform float uMouseDown;  // Mouse In CHOP left button
@@ -25,6 +30,7 @@ uniform float uMouseDown;  // Mouse In CHOP left button
 // add them on the Vectors page with the values from NETWORK.md.
 
 // ===================== SHARED CORE =====================
+
 uniform float uStiffness;
 uniform float uTether;
 uniform float uDamping;
@@ -100,6 +106,7 @@ vec4 renderMain(vec2 uv, vec2 res, float time){
     vel = clamp(vel, vec3(-4.0), vec3(4.0));     // cap for explicit-integration safety
     return vec4(vel, 0.0);
 }
+
 // =================== END SHARED CORE ===================
 
 void main(){

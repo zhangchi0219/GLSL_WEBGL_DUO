@@ -9,8 +9,11 @@ import type { FilterMeta, ParamDef } from "../filters/types";
 
 export interface SimBufferDef {
   name: string;
-  components: 1 | 2 | 4; // stored as RGBA16F regardless; documents intent
+  components: 1 | 2 | 4;
   scale?: number;        // fraction of canvas resolution (default 1.0)
+  size?: [number, number]; // fixed logical/data resolution; overrides scale
+  format?: "rgba16f" | "rgba32f";
+  filter?: "linear" | "nearest";
 }
 
 // Special input names: "source" = uploaded image, "self" = the out buffer's
@@ -31,4 +34,5 @@ export interface SimModule {
   step: SimPassDef[];    // run in order every frame
   display: SimPassDef;   // writes to the screen
   needsSource?: boolean; // bind the uploaded image as the "source" input
+  resetOnParams?: string[]; // initialization controls; changes restart the state
 }

@@ -1,0 +1,296 @@
+import { test, expect, type Page } from "@playwright/test";
+import { unzipSync, strFromU8 } from "fflate";
+import { readFile } from "node:fs/promises";
+const ids = ["mosaic","dither","pixelsort","halftone","ascii","posterize","lut","sobel","kuwahara","oilify","sketch","crt","chromatic","bloom","blur","sharpen","voronoi","ripple","glitch","caustics","gerstner","refract","ripple-rain","ripple-pointer","fluid","cloth-veil","cloth-banner","example-wind","example-noise","example-boundary","example-physics"];
+async function open(page: Page) {
+  await page.goto("/");
+  await expect(page.locator(".compile-state")).toHaveText("编译成功");
+  await expect(page.locator(".stage-overlay")).toHaveCount(0);
+  await expect(page.locator(".cm-content")).toBeVisible();
+}
+async function params(page: Page) { if (!(await page.locator(".parameter-drawer").isVisible())) await page.getByRole("button", { name: "打开参数面板" }).click(); }
+async function code(page: Page, source: string) { await page.getByRole("textbox", { name: "GLSL 源码编辑器" }).fill(source); }
+async function select(page: Page, id: string, status = "编译成功") {
+  const toggle = page.getByRole("button", { name: "打开效果库" });
+  if (await toggle.isVisible()) await toggle.click();
+  await page.locator(`[data-module-id="${id}"]`).click();
+  await expect(page.locator(".compile-state")).toHaveText(status);
+  await expect(page.locator(".stage-overlay")).toHaveCount(0);
+}
+test("all presets compile; layout fits desktop and narrow screens", async ({ page }) => {
+  test.setTimeout(180000);
+  const errors: string[] = []; page.on("pageerror", (e) => errors.push(e.message));
+  await open(page);
+  await page.getByRole("button", { name: "暂停预览" }).click();
+  await page.getByLabel("预览质量").selectOption("low");
+  for (const id of ids) {
+    await select(page, id);
+    await expect(page.locator(".diagnostics")).toHaveCount(0);
+    await expect(page.locator(".stage-error")).toHaveCount(0);
+  }
+  await select(page, "sharpen");
+  await page.getByLabel("预览质量").selectOption("standard");
+  for (const width of [1920,1440,1024,390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1080 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(page.getByRole("button", { name: "运行", exact: true })).toBeVisible();
+    const canvas = await page.getByLabel("滤镜画布").boundingBox(), stage = await page.locator(".stage").boundingBox();
+    expect(canvas!.width).toBeCloseTo(stage!.width, 0); expect(canvas!.height).toBeCloseTo(stage!.height, 0);
+    if (width >= 900) { const codePanel = await page.locator(".code-panel").boundingBox(); expect(codePanel!.x).toBeGreaterThan(canvas!.x + canvas!.width - 1); await expect(page.locator(".cm-content")).toBeVisible(); }
+    else await expect(page.locator(".code-panel")).not.toBeVisible();
+    await page.mouse.move(10, 10);
+    await page.screenshot({ path: `artifacts/verification/workbench-${width}.png` });
+  }
+  await page.getByRole("button", { name: "打开代码示例" }).click();
+  await expect(page.getByRole("complementary", { name: "代码示例", exact: true })).toBeVisible();
+  await page.screenshot({ path: "artifacts/verification/workbench-code-390.png" });
+  await page.getByRole("button", { name: "关闭代码示例" }).click();
+  await page.getByRole("button", { name: "打开参数面板" }).click();
+  await expect(page.getByRole("complementary", { name: "参数面板" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭参数面板" }).click();
+  expect(errors).toEqual([]);
+});
+test("manual edits keep the previous preview; errors point to shared source lines", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "暂停预览" }).click();
+  await code(page, "vec4 renderMain(vec2 uv, vec2 res, float time) {\n return vec4(1.0, 0.0, 0.0, 1.0);\n}\n");
+  await expect(page.locator(".compile-state")).toHaveText("待运行");
+  await expect(page.getByRole("button", { name: "导出 TD", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "运行", exact: true }).click();
+  await expect(page.locator(".compile-state")).toHaveText("编译成功");
+  await code(page, "vec4 renderMain(vec2 uv, vec2 res, float time) {\n return INVALID_CODE;\n}\n");
+  await page.getByRole("textbox", { name: "GLSL 源码编辑器" }).press("Control+Enter");
+  await expect(page.locator(".compile-state")).toHaveText("编译失败");
+  await expect(page.locator(".diagnostics")).toContainText("core:2");
+  await expect(page.locator(".stage-error")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "导出 TD", exact: true })).toBeDisabled();
+  await select(page, "sobel");
+  await select(page, "mosaic", "待运行");
+  await expect(page.locator(".compile-state")).toHaveText("待运行");
+  await expect(page.locator(".cm-content")).toContainText("INVALID_CODE");
+});
+test("custom shader, parameter definitions, exact values, image backup and import", async ({ page }) => {
+  await open(page);
+  await page.locator(".project-menu summary").click();
+  await page.getByRole("button", { name: "新建 Shader", exact: true }).first().click();
+  await page.getByRole("dialog").getByLabel("名称", { exact: true }).fill("Studio Custom");
+  await page.getByRole("button", { name: "创建 Shader" }).click();
+  await expect(page.locator(".compile-state")).toHaveText("编译成功");
+  await params(page);
+  await page.getByRole("button", { name: "参数定义" }).click();
+  await page.getByRole("button", { name: "添加参数" }).click();
+  await page.getByLabel("Uniform 名称").fill("uGain");
+  await page.getByLabel("显示名称").fill("Gain");
+  await page.getByLabel("默认值", { exact: true }).fill("0.985");
+  await page.getByLabel("步长").fill("0.001");
+  await page.getByRole("button", { name: "应用定义" }).click();
+  await code(page, "uniform float uGain;\nvec4 renderMain(vec2 uv, vec2 res, float time) {\n return texture(INPUT0, uv) * vec4(vec3(uGain), 1.0);\n}\n");
+  await page.getByRole("button", { name: "运行", exact: true }).click();
+  await params(page);
+  await expect(page.getByLabel("Gain 数值")).toHaveValue("0.985");
+  await page.getByLabel("Gain 数值").fill("0.997");
+  await page.getByLabel("Gain 数值").press("Enter");
+  await page.getByRole("button", { name: "关闭参数面板" }).click();
+  const image = await page.evaluate(() => { const c = document.createElement("canvas"); c.width = 240; c.height = 480; const x = c.getContext("2d")!; x.fillStyle = "#aa6666"; x.fillRect(0,0,240,480); return c.toDataURL("image/png").split(",")[1]; });
+  await page.getByLabel("选择源图片").setInputFiles({ name: "portrait.png", mimeType: "image/png", buffer: Buffer.from(image, "base64") });
+  await expect(page.locator(".source-info")).toContainText("portrait.png");
+  const canvasRect = await page.getByLabel("滤镜画布").boundingBox(), stageRect = await page.locator(".stage").boundingBox();
+  expect(canvasRect!.width).toBeCloseTo(stageRect!.width, 0); expect(canvasRect!.height).toBeCloseTo(stageRect!.height, 0);
+  await expect(page.locator(".statusbar")).toContainText("已保存到本机");
+  await page.reload();
+  await expect(page.getByLabel("项目名称")).toHaveValue("Studio Custom");
+  await expect(page.getByLabel("Gain 数值")).toHaveValue("0.997");
+  await expect(page.locator(".source-info")).toContainText("portrait.png");
+  const downloadTD = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出 TD", exact: true }).click();
+  const td = await downloadTD;
+  expect((await readFile((await td.path())!, "utf8"))).toMatch(/uGain\s+float\s+0\.997/);
+  await page.locator(".project-menu summary").click();
+  const downloadProject = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出项目与原图" }).click();
+  const project = await downloadProject;
+  const bytes = await readFile((await project.path())!);
+  const packed = unzipSync(bytes);
+  expect(packed["assets/source"].length).toBeGreaterThan(10);
+  expect(JSON.parse(strFromU8(packed["project.json"])).values.uGain).toBe(0.997);
+  await page.getByLabel("选择项目文件").setInputFiles({ name: "backup.glslproj.zip", mimeType: "application/zip", buffer: bytes });
+  await expect(page.locator(".statusbar")).toContainText("已导入为新项目");
+  await expect(page.getByLabel("Gain 数值")).toHaveValue("0.997");
+  await expect(page.locator(".source-info")).toContainText("portrait.png");
+  await page.getByLabel("选择项目文件").setInputFiles({ name: "broken.zip", mimeType: "application/zip", buffer: Buffer.from("broken") });
+  await expect(page.locator(".error-toast")).toContainText("损坏");
+  await expect(page.getByLabel("项目名称")).toHaveValue("Studio Custom");
+});
+test("simulations edit each pass and export complete ZIP networks", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "暂停预览" }).click();
+  await page.getByLabel("预览质量").selectOption("low");
+  await select(page, "ripple-pointer");
+  await params(page);
+  await expect(page.getByLabel("Rain Rate 数值")).toHaveValue("0.00");
+  await page.getByLabel("Damping 数值").fill("0.997");
+  await page.getByLabel("Damping 数值").press("Enter");
+  await page.getByRole("button", { name: "关闭参数面板" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出 TD", exact: true }).click();
+  const result = await download;
+  const files = unzipSync(await readFile((await result.path())!));
+  expect(Object.keys(files)).toEqual(expect.arrayContaining(["clear.glsl","propagate.glsl","splat.glsl","display.glsl","NETWORK.md"]));
+  expect(strFromU8(files["NETWORK.md"])).toMatch(/uDamping\s+float\s+0\.997/);
+  expect(strFromU8(files["NETWORK.md"])).toContain("Initialization");
+  await page.getByLabel("模拟 Pass").selectOption("propagate");
+  await code(page, "broken pass");
+  await page.getByRole("button", { name: "运行", exact: true }).click();
+  await expect(page.locator(".compile-state")).toHaveText("编译失败");
+  await expect(page.locator(".diagnostics")).toContainText("propagate");
+  await expect(page.locator(".stage-error")).toHaveCount(0);
+  await page.getByLabel("模拟 Pass").selectOption("display");
+  await expect(page.locator(".cm-content")).toContainText("renderMain");
+});
+test("renderer program swaps are atomic and free failed shaders", async ({ page }) => {
+  await open(page);
+  const results = await page.evaluate(async () => {
+    const { Renderer } = await import("/src/gl/renderer.ts");
+    const { SimRenderer } = await import("/src/gl/simRenderer.ts");
+    const { pointer: mod } = await import("/src/sims/waterRipple.ts");
+    const { defaultState } = await import("/src/filters/types.ts");
+    const canvas = document.createElement("canvas"); canvas.style.cssText = "width:100px;height:100px;position:absolute;left:-200px"; document.body.append(canvas);
+    const renderer = new Renderer(canvas);
+    const gl = renderer.gl;
+    let shaders = 0, programs = 0;
+    const createShader = gl.createShader.bind(gl), deleteShader = gl.deleteShader.bind(gl), createProgram = gl.createProgram.bind(gl), deleteProgram = gl.deleteProgram.bind(gl);
+    gl.createShader = ((type: number) => { shaders++; return createShader(type); }) as typeof gl.createShader;
+    gl.deleteShader = ((shader: WebGLShader | null) => { if (shader) shaders--; deleteShader(shader); }) as typeof gl.deleteShader;
+    gl.createProgram = (() => { programs++; return createProgram(); }) as typeof gl.createProgram;
+    gl.deleteProgram = ((program: WebGLProgram | null) => { if (program) programs--; deleteProgram(program); }) as typeof gl.deleteProgram;
+    renderer.compileCore("vec4 renderMain(vec2 uv,vec2 res,float time){return vec4(1.,0.,0.,1.);}",[]);
+    renderer.render(0,{},[0.5,0.5]);
+    try { renderer.compileCore("broken shader",[]); } catch {}
+    renderer.render(0,{},[0.5,0.5]);
+    const pixel = new Uint8Array(4); gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+    const glError = gl.getError();
+    renderer.dispose();
+    const simCanvas = document.createElement("canvas"); simCanvas.style.cssText = canvas.style.cssText; document.body.append(simCanvas);
+    const sim = new SimRenderer(simCanvas);
+    sim.compileModule(mod);
+    const state = defaultState(mod.params), ptr = { pos: [0.5,0.5] as [number,number], vel: [0,0] as [number,number], down: false };
+    sim.render(0,state,ptr);
+    const bad = structuredClone(mod); bad.display.core = "broken display"; let failed = false;
+    try { sim.compileModule(bad); } catch { failed = true; }
+    sim.render(0,state,ptr);
+    const simError = sim.gl.getError();
+    sim.dispose(); canvas.remove(); simCanvas.remove();
+    return { pixel: [...pixel], glError, shaders, programs, failed, simError };
+  });
+  expect(results).toEqual({ pixel: [255,0,0,255], glError: 0, shaders: 0, programs: 0, failed: true, simError: 0 });
+});
+test("context loss restores the accepted shader and parameters", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('canvas[aria-label="滤镜画布"]')!;
+    (window as any).lostExtension = canvas.getContext("webgl2")!.getExtension("WEBGL_lose_context");
+    (window as any).lostExtension.loseContext();
+  });
+  await expect(page.locator(".stage-error")).toContainText("上下文丢失");
+  await page.evaluate(() => (window as any).lostExtension.restoreContext());
+  await expect(page.locator(".stage-error")).toHaveCount(0);
+  await expect(page.locator(".compile-state")).toHaveText("编译成功");
+});
+test("running simulations accept strokes; pause, split sizing and preset restore remain usable", async ({ page }) => {
+  test.setTimeout(120000);
+  await open(page);
+  await page.getByLabel("预览质量").selectOption("low");
+  for (const id of ["ripple-rain", "ripple-pointer", "fluid", "cloth-veil", "cloth-banner"]) {
+    await select(page, id);
+    const canvas = page.getByLabel("模拟画布");
+    const rect = (await canvas.boundingBox())!;
+    await page.mouse.move(rect.x + rect.width * .3, rect.y + rect.height * .5);
+    await page.mouse.down();
+    await page.mouse.move(rect.x + rect.width * .6, rect.y + rect.height * .45, { steps: 8 });
+    await page.evaluate(() => new Promise<void>((resolve) => { let remaining = 6; const tick = () => { if (--remaining <= 0) resolve(); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); }));
+    await page.mouse.up();
+    await expect(page.locator(".stage-error")).toHaveCount(0);
+    await expect(page.locator(".compile-state")).toHaveText("编译成功");
+    expect(await canvas.evaluate((node) => (node as HTMLCanvasElement).getContext("webgl2")!.getError())).toBe(0);
+  }
+  await page.getByRole("button", { name: "暂停预览" }).click();
+  await expect(page.locator(".statusbar")).toContainText("已暂停");
+  const separator = page.getByRole("separator");
+  const before = await separator.getAttribute("aria-valuenow");
+  await separator.focus();
+  await separator.press("ArrowLeft");
+  expect(await separator.getAttribute("aria-valuenow")).not.toBe(before);
+  await expect.poll(() => page.getByLabel("模拟画布").evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    return canvas.width === Math.round(canvas.clientWidth * 0.5) && canvas.height === Math.round(canvas.clientHeight * 0.5);
+  })).toBe(true);
+  const originalDimensions = await page.getByLabel("模拟画布").evaluate((node) => [(node as HTMLCanvasElement).width, (node as HTMLCanvasElement).height]);
+  await page.getByRole("button", { name: "放大代码" }).click();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  expect(await page.getByLabel("模拟画布").evaluate((node) => [(node as HTMLCanvasElement).width, (node as HTMLCanvasElement).height])).toEqual(originalDimensions);
+  await page.getByRole("button", { name: "恢复分屏" }).click();
+  await page.getByRole("button", { name: "重置模拟" }).click();
+  await expect(page.locator(".stage-error")).toHaveCount(0);
+  await select(page, "mosaic");
+  await code(page, "vec4 renderMain(vec2 uv,vec2 res,float time){return vec4(0.2);}");
+  await page.getByRole("button", { name: "运行", exact: true }).click();
+  await expect(page.locator(".compile-state")).toHaveText("编译成功");
+  await page.locator(".project-menu summary").click();
+  await page.getByRole("button", { name: "恢复预设代码" }).click();
+  await expect(page.locator(".cm-content")).toContainText("uBlock");
+  await page.getByRole("button", { name: "撤销恢复" }).click();
+  await expect(page.locator(".cm-content")).toContainText("return vec4(0.2)");
+});
+
+test("code examples preserve editing history and export the animated gradient source", async ({ page, context }) => {
+  await open(page);
+  await page.getByRole("button", { name: "暂停预览" }).click();
+  const draft = "vec4 renderMain(vec2 uv, vec2 res, float time) { return texture(INPUT0, uv); }";
+  await code(page, draft);
+  const editor = page.getByRole("textbox", { name: "GLSL 源码编辑器" });
+  await editor.press("Control+End");
+  await editor.press("z");
+  const wrapping = page.getByRole("button", { name: "切换自动换行" });
+  await wrapping.click();
+  await expect(wrapping).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".code-surface:not([hidden]) .cm-content")).toContainText(draft + "z");
+  await page.getByRole("tab", { name: "TouchDesigner", exact: true }).click();
+  await expect(page.locator(".code-surface:not([hidden]) .cm-content")).toHaveAttribute("contenteditable", "false");
+  await page.getByRole("tab", { name: "Gradient 底图", exact: true }).click();
+  await expect(page.locator(".example-file")).toContainText("gradient_source_td.glsl");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载示例", exact: true }).click();
+  const result = await download;
+  expect(result.suggestedFilename()).toBe("gradient_source_td.glsl");
+  const source = await readFile((await result.path())!, "utf8");
+  expect(source).toContain("No input TOP required");
+  expect(source).not.toContain("#define INPUT0");
+  expect(source).toContain("TDOutputSwizzle");
+  await page.getByRole("tab", { name: "GLSL", exact: true }).click();
+  await editor.press("Control+z");
+  await expect(page.locator(".code-surface:not([hidden]) .cm-content")).toHaveText(draft);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "复制代码示例" }).click();
+  await expect(page.getByRole("button", { name: "复制代码示例" })).toHaveAttribute("title", "已复制");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(draft);
+  await page.locator(".code-help summary").click();
+  const help = (await page.locator(".code-help > div").boundingBox())!, panel = (await page.locator(".code-panel").boundingBox())!;
+  expect(help.x).toBeGreaterThanOrEqual(panel.x); expect(help.x + help.width).toBeLessThanOrEqual(panel.x + panel.width);
+  await page.locator(".code-help summary").click();
+  const gradient = await page.evaluate(async () => {
+    const { Renderer } = await import("/src/gl/renderer.ts");
+    const { fluidGradientModule } = await import("/src/gl/fluidGradient.ts");
+    const canvas = document.createElement("canvas"); canvas.style.cssText = "width:64px;height:64px;position:absolute;left:-200px"; document.body.append(canvas);
+    const renderer = new Renderer(canvas);
+    renderer.compileCore("vec4 renderMain(vec2 uv,vec2 res,float time){return texture(INPUT0,uv);}", []);
+    renderer.setGradient(true);
+    const gl = renderer.gl, before = new Uint8Array(64 * 64 * 4), after = new Uint8Array(before.length);
+    renderer.render(0, {}, [0.5,0.5]); gl.readPixels(0,0,64,64,gl.RGBA,gl.UNSIGNED_BYTE,before);
+    renderer.render(20, {}, [0.5,0.5]); gl.readPixels(0,0,64,64,gl.RGBA,gl.UNSIGNED_BYTE,after);
+    const changed = before.reduce((sum,value,i) => sum + Number(value !== after[i]),0), error = gl.getError();
+    renderer.dispose(); canvas.remove(); return { changed, error, core: fluidGradientModule.core };
+  });
+  expect(gradient.changed).toBeGreaterThan(64 * 64);
+  expect(gradient.error).toBe(0);
+  expect(source).toContain(gradient.core);
+});

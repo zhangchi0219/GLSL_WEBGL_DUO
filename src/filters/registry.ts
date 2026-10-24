@@ -61,8 +61,20 @@ export const registry: RegistryEntry[] = [
   { kind: "sim", id: "fluid", name: "2D Fluid (Stable)", group: "Simulation", load: () => import("../sims/fluid").then((m) => m.fluid) },
   { kind: "sim", id: "cloth-veil", name: "Sheer Veil", group: "Simulation", load: () => import("../sims/cloth").then((m) => m.veil) },
   { kind: "sim", id: "cloth-banner", name: "Hanging Banner", group: "Simulation", load: () => import("../sims/cloth").then((m) => m.banner) },
+
+  { kind: "sim", id: "example-wind", name: "Wind", group: "Simulation Examples", load: () => import("../sims/examples/flow").then((m) => m.wind) },
+  { kind: "sim", id: "example-noise", name: "Noise", group: "Simulation Examples", load: () => import("../sims/examples/flow").then((m) => m.noise) },
+  { kind: "sim", id: "example-boundary", name: "Boundary", group: "Simulation Examples", load: () => import("../sims/examples/boundary").then((m) => m.boundary) },
+  { kind: "sim", id: "example-physics", name: "Physics", group: "Simulation Examples", load: () => import("../sims/examples/physics").then((m) => m.physics) },
+
+  { kind: "sim", id: "organic-space-colonization", name: "Space Colonization", group: "Organic Growth", load: () => import("../sims/organic/spaceColonization").then((m) => m.spaceColonization) },
+  { kind: "sim", id: "organic-l-system", name: "L-system", group: "Organic Growth", load: () => import("../sims/organic/lSystem").then((m) => m.lSystem) },
+  { kind: "sim", id: "organic-reaction-diffusion", name: "Reaction–Diffusion", group: "Organic Growth", load: () => import("../sims/organic/reactionDiffusion").then((m) => m.reactionDiffusion) },
+  { kind: "sim", id: "organic-physarum", name: "Physarum", group: "Organic Growth", load: () => import("../sims/organic/physarum").then((m) => m.physarum) },
+  { kind: "sim", id: "organic-dla", name: "DLA", group: "Organic Growth", load: () => import("../sims/organic/dla").then((m) => m.dla) },
+  { kind: "sim", id: "organic-phyllotaxis", name: "Phyllotaxis", group: "Organic Growth", load: () => import("../sims/organic/phyllotaxis").then((m) => m.phyllotaxis) },
 ];
 
 export const GROUP_ORDER: FilterGroup[] = [
-  "Pixel", "Tone", "Stylize", "Optical", "Distort", "Water", "Simulation",
+  "Pixel", "Tone", "Stylize", "Optical", "Distort", "Water", "Simulation", "Simulation Examples", "Organic Growth",
 ];

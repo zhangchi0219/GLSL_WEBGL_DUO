@@ -16,8 +16,8 @@ export function makePointer(): Pointer {
 export function pointerHandlers(p: Pointer) {
   const update = (e: React.PointerEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width;
-    const y = 1 - (e.clientY - r.top) / r.height;
+    const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const y = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
     p.vel = [x - p.pos[0], y - p.pos[1]];
     p.pos = [x, y];
   };
@@ -32,6 +32,8 @@ export function pointerHandlers(p: Pointer) {
       p.vel = [0, 0];
     },
     onPointerUp: () => { p.down = false; },
-    onPointerLeave: () => { p.down = false; },
+    onPointerLeave: (e: React.PointerEvent) => { if (!(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) p.down = false; },
+    onPointerCancel: () => { p.down = false; p.vel = [0, 0]; },
+    onLostPointerCapture: () => { p.down = false; p.vel = [0, 0]; },
   };
 }

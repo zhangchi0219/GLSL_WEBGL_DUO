@@ -1,46 +1,29 @@
-/* ============================================================
-   Studio Web UI — Base layer. Element defaults + utilities.
-   Load AFTER tokens.css.
-   ============================================================ */
-
 *, *::before, *::after { box-sizing: border-box; }
-
 html, body, #root { height: 100%; }
-
-body {
-  margin: 0;
-  background: var(--canvas);
-  color: var(--ink);
-  font: 400 var(--fs-body)/1.5 var(--font-body);
-  -webkit-font-smoothing: antialiased;
-}
-
-/* the mono metadata label — the signature element */
-.label {
-  font: 500 var(--fs-label)/1 var(--font-mono);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.on-hot { color: var(--on-hot); }
-
-/* ---------------------------------------------------------------
-   Optional: self-host the Latin display/mono faces for the real
-   grotesque look + mainland-China reliability. Drop the woff2 files
-   into public/fonts/ and uncomment. Until then the token chains fall
-   back to the system stack (works offline, renders Chinese fine).
-   See the studio-web-ui fonts-china reference.
-----------------------------------------------------------------
-@font-face {
-  font-family: "Bricolage Grotesque";
-  src: url("./fonts/bricolage-grotesque-800.woff2") format("woff2");
-  font-weight: 700 800; font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122;
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("./fonts/jetbrains-mono-500.woff2") format("woff2");
-  font-weight: 500; font-display: swap;
-}
---------------------------------------------------------------- */
+body { margin: 0; background: var(--canvas); color: var(--ink); font: 400 13px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+button, summary { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .35; }
+button, input, select { color: inherit; }
+button { border: 0; }
+button, a, summary, input, select, [tabindex] { outline-offset: 3px; }
+:focus-visible { outline: 1px solid #a8a8a8; }
+input, select { min-width: 0; background: #141414; border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 9px; }
+input::placeholder { color: var(--ink-faint); }
+input:focus, select:focus { border-color: var(--border-strong); }
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input::-webkit-inner-spin-button, input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+h1, h2, p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+svg { flex-shrink: 0; }
+kbd, code, .mono { font-family: var(--font-mono); }
+kbd { color: var(--ink-faint); font-size: 10px; font-weight: 400; }
+.muted { color: var(--ink-muted); }
+.empty { padding: 20px 0; color: var(--ink-muted); font-size: 12px; line-height: 1.9; }
+.hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.hidden-input:focus-visible { outline: none; }
+* { scrollbar-width: thin; scrollbar-color: #343434 transparent; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: #343434; border-radius: 4px; }
+::selection { background: #353535; color: #f0f0f0; }
